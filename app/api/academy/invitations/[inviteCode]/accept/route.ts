@@ -10,52 +10,95 @@ export async function POST(
   const session = await getSession()
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'يجب تسجيل الدخول أولاً' }, { status: 401 })
   }
 
-  try {
-    // Get invitation
-    const invitations = await query(`
-      SELECT * FROM invitations WHERE code = $1
-    `, [inviteCode])
+  const invitations = await query<any>(
+    `SELECT i.*, c.title AS plan_title
+     FROM invitations i
+     LEFT JOIN courses c ON c.id = i.plan_id
+     WHERE i.token = $1`,
+    [inviteCode]
+  )
 
-    if (invitations.length === 0) {
-      return NextResponse.json({ error: 'Invitation not found' }, { status: 404 })
-    }
-
-    const invitation = invitations[0] as any
-
-    // Check if expired
-    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
-      return NextResponse.json({ error: 'Invitation expired' }, { status: 410 })
-    }
-
-    // Check if already accepted
-    if (invitation.accepted_at) {
-      return NextResponse.json({ error: 'Invitation already accepted' }, { status: 400 })
-    }
-
-    // If it's a course invitation, enroll in course
-    if (invitation.course_id) {
-      try {
-        await query(`
-          INSERT INTO enrollments (student_id, course_id, status, enrolled_at)
-          VALUES ($1, $2, 'active', NOW())
-        `, [session.sub, invitation.course_id])
-      } catch (e: any) {
-        // Ignore if already enrolled
-        if (e.code !== '23505') throw e
-      }
-    }
-
-    // Mark invitation as accepted
-    await query(`
-      UPDATE invitations SET accepted_at = NOW(), accepted_by = $1 WHERE code = $2
-    `, [session.sub, inviteCode])
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error accepting invitation:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  if (!invitations.length) {
+    return NextResponse.json({ error: 'رابط الدعوة غير صالح' }, { status: 404 })
   }
+
+  const inv = invitations[0]
+
+  if (inv.status === 'ACCEPTED') {
+    return NextResponse.json({ error: 'تم قبول هذه الدعوة مسبقاً' }, { status: 400 })
+  }
+  if (inv.status === 'CANCELLED') {
+    return NextResponse.json({ error: 'تم إلغاء هذه الدعوة' }, { status: 400 })
+  }
+  if (inv.status === 'EXPIRED' || (inv.expires_at && new Date(inv.expires_at) < new Date())) {
+    await query(`UPDATE invitations SET status = 'EXPIRED' WHERE id = $1`, [inv.id])
+    return NextResponse.json({ error: 'انتهت صلاحية هذه الدعوة' }, { status: 410 })
+  }
+
+  // Assign the invited role to the user if different from current role
+  if (inv.role_to_assign && inv.role_to_assign !== session.role) {
+    await query(
+      `UPDATE users SET role = $1 WHERE id = $2`,
+      [inv.role_to_assign, session.sub]
+    )
+  }
+
+  // Enroll in plan (plan_id is a course/plan in the courses table)
+  let enrolledPlanId: string | null = null
+  if (inv.plan_id) {
+    try {
+      await query(
+        `INSERT INTO enrollments (student_id, course_id, status, enrolled_at)
+         VALUES ($1, $2, 'active', NOW())
+         ON CONFLICT (student_id, course_id) DO UPDATE SET status = 'active'`,
+        [session.sub, inv.plan_id]
+      )
+      enrolledPlanId = inv.plan_id
+    } catch (e: any) {
+      if (e.code !== '23505') throw e
+    }
+  }
+
+  // Legacy: also enroll in target_course_id if present
+  if (inv.target_course_id && inv.target_course_id !== inv.plan_id) {
+    try {
+      await query(
+        `INSERT INTO enrollments (student_id, course_id, status, enrolled_at)
+         VALUES ($1, $2, 'active', NOW())
+         ON CONFLICT (student_id, course_id) DO UPDATE SET status = 'active'`,
+        [session.sub, inv.target_course_id]
+      )
+    } catch (e: any) {
+      if (e.code !== '23505') throw e
+    }
+  }
+
+  // Mark accepted
+  await query(
+    `UPDATE invitations
+     SET status = 'ACCEPTED', accepted_at = NOW(), accepted_by_user_id = $1
+     WHERE id = $2`,
+    [session.sub, inv.id]
+  )
+
+  // Audit history — best effort
+  await query(
+    `INSERT INTO invitation_history (invitation_id, previous_status, new_status, changed_by)
+     VALUES ($1, $2, 'ACCEPTED', $3)`,
+    [inv.id, inv.status, session.sub]
+  ).catch(() => {})
+
+  return NextResponse.json({
+    success: true,
+    enrolledPlanId,
+    planTitle: inv.plan_title || null,
+    role: inv.role_to_assign,
+    // Frontend uses this to redirect appropriately
+    redirect: enrolledPlanId
+      ? `/academy/student/courses/${enrolledPlanId}`
+      : '/academy/student',
+  })
 }

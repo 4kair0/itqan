@@ -14,14 +14,14 @@ import {
   Menu, X, Users, Settings, Trophy, MessageSquare, ClipboardList,
   GraduationCap, PlayCircle, FileText, Target, Award, Star,
   HelpCircle, Megaphone, UserPlus, BarChart3, Clock, Video,
-  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield
+  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield, Archive
 } from 'lucide-react'
 import { usePublicSettings } from '@/lib/hooks/use-public-settings'
 
 type NavItem = { href: string; label: string; icon: React.ElementType; badge?: number | string | null }
 type NavSection = { title?: string; items: NavItem[] }
 
-type AcademyRole = 'academy_student' | 'teacher' | 'academy_admin' | 'parent' | 'supervisor'
+type AcademyRole = 'academy_student' | 'teacher' | 'academy_admin' | 'parent' | 'supervisor' | 'fiqh_questions_supervisor' | 'content_supervisor'
 
 const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection[], label: string, name: string, sublabel: string } => {
   const configs: Record<AcademyRole, { sections: NavSection[], label: string, name: string, sublabel: string }> = {
@@ -30,12 +30,18 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
         {
           items: [
             { href: '/academy/student', label: t.academy?.dashboard || 'لوحة التحكم', icon: LayoutDashboard },
+            { href: '/academy/student/calendar', label: t.academy?.calendar || 'التقويم', icon: Calendar },
             { href: '/academy/student/courses', label: t.academy?.myCourses || 'دوراتي', icon: BookOpen },
             { href: '/academy/student/courses/browse', label: t.academy?.browseCourses || 'تصفح الدورات', icon: GraduationCap },
+            { href: '/academy/student/courses/archive', label: t.academy?.archive || 'الأرشيف', icon: Archive },
+            { href: '/academy/student/enrollment-requests', label: t.academy?.enrollmentRequests || 'طلبات الانضمام', icon: UserPlus },
             { href: '/academy/student/memorization', label: t.academy?.memorization || 'الحفظ والمراجعة', icon: BookMarked },
+            { href: '/academy/student/memorization/goal', label: t.academy?.weeklyGoal || 'هدف الحفظ الأسبوعي', icon: Target },
             { href: '/academy/student/tasks', label: t.academy?.tasks || 'المهام', icon: ClipboardList },
             { href: '/academy/student/sessions', label: t.academy?.liveSessions || 'الجلسات الحية', icon: Video },
             { href: '/academy/student/path', label: t.academy?.learningPath || 'المسار التعليمي', icon: Route },
+            { href: '/academy/student/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
+            { href: '/academy/student/fiqh', label: t.academy?.fiqhQuestions || 'أسئلة فقهية', icon: HelpCircle },
           ]
         },
         {
@@ -44,6 +50,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/student/progress', label: t.academy?.progress || 'تقدمي', icon: Target },
             { href: '/academy/student/leaderboard', label: t.academy?.leaderboard || 'لوحة المتصدرين', icon: Trophy },
             { href: '/academy/student/badges', label: t.academy?.badges || 'الشارات', icon: Award },
+            { href: '/academy/student/certificates', label: t.academy?.certificates || 'الشهادات', icon: GraduationCap },
           ]
         },
         {
@@ -67,8 +74,10 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/teacher/enrollment-requests', label: t.academy?.enrollmentRequests || 'طلبات الانضمام', icon: Bell },
             { href: '/academy/teacher/schedule', label: t.academy?.schedule || 'الجدول', icon: Calendar },
             { href: '/academy/teacher/tasks', label: t.academy?.tasks || 'المهام', icon: ClipboardList },
+            { href: '/academy/teacher/memorization-goals', label: t.academy?.memorizationGoals || 'أهداف الحفظ', icon: Target },
             { href: '/academy/teacher/students', label: t.academy?.myStudents || 'طلابي', icon: Users },
             { href: '/academy/teacher/halaqat', label: t.academy?.halaqat || 'الحلقات', icon: GraduationCap },
+            { href: '/academy/teacher/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
           ]
         },
         {
@@ -97,18 +106,24 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
           items: [
             { href: '/academy/admin', label: t.academy?.dashboard || 'لوحة التحكم', icon: LayoutDashboard },
             { href: '/academy/admin/analytics', label: t.academy?.analytics || 'التحليلات', icon: BarChart3 },
+            { href: '/academy/admin/reports', label: t.academy?.reports || 'التقارير', icon: FileText },
           ]
         },
         {
           title: t.management || 'الإدارة',
           items: [
             { href: '/academy/admin/courses', label: t.academy?.courses || 'الدورات', icon: BookOpen },
+            { href: '/academy/admin/courses/archive', label: t.academy?.coursesArchive || 'أرشيف الدورات', icon: Archive },
             { href: '/academy/admin/categories', label: t.academy?.categories || 'التصنيفات', icon: Grid },
             { href: '/academy/admin/teachers', label: t.academy?.teachers || 'المدرسين', icon: GraduationCap },
             { href: '/academy/admin/teacher-applications', label: t.academy?.teacherApplications || 'طلبات التدريس', icon: UserCheck },
+            { href: '/academy/admin/application-questions', label: t.academy?.applicationQuestions || 'أسئلة طلبات الانضمام', icon: ClipboardList },
             { href: '/academy/admin/students', label: t.academy?.students || 'الطلاب', icon: Users },
+            { href: '/academy/admin/learning-paths', label: t.tajweedPaths?.title || 'مسارات التعلم', icon: GraduationCap },
             { href: '/academy/admin/paths', label: t.academy?.learningPaths || 'المسارات التعليمية', icon: Route },
             { href: '/academy/admin/invitations', label: t.academy?.invitations || 'الدعوات', icon: UserPlus },
+            { href: '/academy/admin/users', label: t.admin?.users || 'المستخدمين', icon: Users },
+            { href: '/academy/admin/supervisors', label: 'مشرفو الفقه', icon: Shield },
           ]
         },
         {
@@ -125,6 +140,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/admin/forum', label: t.academy?.forum || 'المنتدى', icon: MessageSquare },
             { href: '/academy/admin/fiqh', label: t.academy?.fiqhQuestions || 'أسئلة فقهية', icon: HelpCircle },
             { href: '/academy/admin/announcements', label: t.admin?.announcements || 'الإعلانات', icon: Megaphone },
+            { href: '/academy/admin/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
           ]
         },
         {
@@ -169,6 +185,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/supervisor/content', label: t.academy?.contentReview || 'إشراف المحتوى', icon: BookOpen },
             { href: '/academy/supervisor/forum', label: t.academy?.forumModeration || 'إشراف المنتدى', icon: MessageSquare },
             { href: '/academy/supervisor/fiqh', label: t.academy?.fiqhQuestions || 'الأسئلة الفقهية', icon: HelpCircle },
+            { href: '/academy/supervisor/teachers', label: t.academy?.teacherVerification || 'توثيق المدرسين', icon: UserCheck },
             { href: '/academy/supervisor/quality', label: t.academy?.qualityMonitor || 'مراقبة الجودة', icon: BarChart3 },
           ]
         },
@@ -183,6 +200,47 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
       label: t.academy?.supervisorPortal || 'لوحة المشرف',
       name: t.academy?.supervisor || 'مشرف',
       sublabel: t.academy?.academySupervisor || 'مشرف الأكاديمية'
+    },
+    fiqh_questions_supervisor: {
+      sections: [
+        {
+          items: [
+            { href: '/academy/fiqh-supervisor', label: 'لوحة التحكم', icon: LayoutDashboard },
+            { href: '/academy/fiqh-supervisor/questions', label: 'الأسئلة والإجابات', icon: HelpCircle },
+            { href: '/academy/fiqh-supervisor/messages', label: 'الرسائل', icon: MessageSquare },
+          ]
+        },
+        {
+          title: 'الحساب',
+          items: [
+            { href: '/academy/fiqh-supervisor/profile', label: 'الملف الشخصي', icon: User },
+          ]
+        }
+      ],
+      label: 'لوحة مشرف أسئلة الفقه',
+      name: 'مشرف أسئلة الفقه',
+      sublabel: 'مشرف أسئلة الفقه'
+    },
+    content_supervisor: {
+      sections: [
+        {
+          items: [
+            { href: '/academy/content-supervisor', label: 'لوحة التحكم', icon: LayoutDashboard },
+            { href: '/academy/content-supervisor/lessons', label: 'الدروس', icon: BookOpen },
+            { href: '/academy/content-supervisor/archive', label: 'أرشيف الدورات', icon: Archive },
+            { href: '/academy/content-supervisor/messages', label: 'الرسائل', icon: MessageSquare },
+          ]
+        },
+        {
+          title: 'الحساب',
+          items: [
+            { href: '/academy/content-supervisor/profile', label: 'الملف الشخصي', icon: User },
+          ]
+        }
+      ],
+      label: 'لوحة مشرف المحتوى',
+      name: 'مشرف المحتوى',
+      sublabel: 'مشرف المحتوى'
     }
   }
 
@@ -216,6 +274,7 @@ export function AcademyDashboardShell({
     gender?: string;
     has_quran_access?: boolean;
     has_academy_access?: boolean;
+    approval_status?: string;
   } | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [avatarError, setAvatarError] = useState(false)
@@ -250,15 +309,47 @@ export function AcademyDashboardShell({
 
   const rawConfig = getAcademyRoleConfig(t, role)
   const userName = user?.name || rawConfig.name
-  const config = { ...rawConfig, name: userName }
+
+  // Gate the sidebar: pending/rejected applicants see only the pending dashboard link.
+  const isPendingApplicant =
+    role === 'teacher' &&
+    user?.approval_status &&
+    ['pending_approval', 'rejected'].includes(user.approval_status)
+
+  const config = isPendingApplicant
+    ? {
+        ...rawConfig,
+        name: userName,
+        sections: [
+          {
+            items: [
+              {
+                href: '/academy/pending',
+                label: t.academy?.applicationStatus || 'طلب الانضمام',
+                icon: ClipboardList,
+              },
+            ],
+          },
+        ] as NavSection[],
+      }
+    : { ...rawConfig, name: userName }
 
   const isActive = (href: string) => {
-    const basePath = `/academy/${role === 'academy_student' ? 'student' : role === 'academy_admin' ? 'admin' : role}`
+    const basePaths: Record<string, string> = {
+      academy_student: '/academy/student',
+      teacher: '/academy/teacher',
+      academy_admin: '/academy/admin',
+      parent: '/academy/parent',
+      supervisor: '/academy/supervisor',
+      fiqh_questions_supervisor: '/academy/fiqh-supervisor',
+      content_supervisor: '/academy/content-supervisor',
+    }
+    const basePath = basePaths[role] || `/academy/${role}`
     return pathname === href || (href !== basePath && pathname.startsWith(href + '/'))
   }
 
   return (
-    <div className={`h-screen flex overflow-hidden bg-background transition-colors duration-500 ${user?.gender?.toLowerCase() === 'female' ? 'theme-female' : ''}`}>
+    <div className={`theme-academy h-screen flex overflow-hidden bg-background transition-colors duration-500 ${user?.gender?.toLowerCase() === 'female' ? 'theme-female' : ''}`}>
       {/* Overlay */}
       {sidebarOpen && (
         <div
@@ -274,7 +365,7 @@ export function AcademyDashboardShell({
         'bg-card border-l border-border'
       )}>
         {/* Logo */}
-        <div className="py-1 flex items-center justify-center border-b border-border relative overflow-hidden bg-gradient-to-l from-blue-500/5 to-transparent">
+        <div className="py-1 flex items-center justify-center border-b border-border relative overflow-hidden bg-gradient-to-l from-[#1E3A5F]/5 to-transparent">
           <Link href="/" className="w-full block px-4">
             <img
               src={branding?.dashboardLogoUrl || "/branding/dashboard-logo.png"}
@@ -293,7 +384,7 @@ export function AcademyDashboardShell({
 
         {/* Academy Badge */}
         <div className="px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#1E3A5F]/10 text-[#1E3A5F] dark:text-[#7faad6]">
             <GraduationCap className="w-5 h-5" />
             <span className="font-semibold text-sm">{t.academy?.title || 'الأكاديمية'}</span>
             <Sparkles className="w-4 h-4 mr-auto" />
@@ -322,7 +413,7 @@ export function AcademyDashboardShell({
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm group relative',
                       active
-                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-sm'
+                        ? 'bg-[#1E3A5F]/10 text-[#1E3A5F] dark:text-[#7faad6] font-bold shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
@@ -332,17 +423,17 @@ export function AcademyDashboardShell({
                     )} />
                     <span className="font-medium">{item.label}</span>
                     {item.badge && (
-                      <span className="mr-auto bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-bold">
+                      <span className="mr-auto bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-bold animate-pulse">
                         {item.badge}
                       </span>
                     )}
                     {item.href.includes('notifications') && unreadCount > 0 && !item.badge && (
-                      <span className="mr-auto bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-bold">
+                      <span className="mr-auto bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-bold animate-pulse">
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
                     )}
                     {active && (
-                      <div className="absolute right-0 w-1 h-6 bg-blue-500 rounded-l-full" />
+                      <div className="absolute right-0 w-1 h-6 bg-[#1E3A5F] rounded-l-full" />
                     )}
                   </Link>
                 )
@@ -354,7 +445,7 @@ export function AcademyDashboardShell({
         {/* Bottom section */}
         <div className="p-4 border-t border-border mt-auto">
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl mb-2 bg-muted/30 border border-border transition-colors">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm ring-2 ring-background shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1E3A5F]/10 text-[#1E3A5F] dark:text-[#7faad6] flex items-center justify-center font-bold text-sm ring-2 ring-background shadow-sm shrink-0">
               {user?.avatar_url && !avatarError ? (
                 <img
                   src={user.avatar_url}
@@ -376,7 +467,7 @@ export function AcademyDashboardShell({
 
           <Link
             href="/"
-            className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm text-muted-foreground hover:text-blue-600"
+            className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm text-muted-foreground hover:text-[#1E3A5F] dark:hover:text-[#7faad6]"
           >
             <Globe className="w-4 h-4" />
             <span className="font-medium">{t.shell?.viewSite || 'عرض الموقع'}</span>
@@ -389,7 +480,7 @@ export function AcademyDashboardShell({
         <header className="h-16 border-b border-border flex items-center justify-between px-6 lg:px-8 bg-background/95 backdrop-blur-md z-10 sticky top-0">
           <div className="flex items-center gap-4">
             <button
-              className="lg:hidden p-2 text-muted-foreground hover:text-blue-600"
+              className="lg:hidden p-2 text-muted-foreground hover:text-[#1E3A5F] dark:hover:text-[#7faad6]"
               onClick={() => setSidebarOpen(true)}
               aria-label="open menu"
             >
@@ -415,7 +506,15 @@ export function AcademyDashboardShell({
             <LanguageSwitcher variant="outline" />
 
             <NotificationDropdown
-              role={role === 'academy_admin' ? 'admin' : 'student'}
+              // #27: Always route academy users to academy notifications pages
+              // so they don't get redirected to the Qur'an side.
+              role={
+                role === 'academy_admin' ? 'academy/admin' :
+                role === 'teacher' ? 'academy/teacher' :
+                role === 'parent' ? 'academy/parent' :
+                role === 'supervisor' ? 'academy/supervisor' :
+                'academy/student'
+              }
               unreadCount={unreadCount}
               onRefresh={async () => {
                 const res = await fetch('/api/unread-counts')
