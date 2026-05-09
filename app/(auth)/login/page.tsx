@@ -22,9 +22,7 @@ export default function LoginPage() {
         if (res.ok) {
           const data = await res.json()
           if (data.user) {
-            const loginRole = data.user.role
-            const rolePath = ['student', 'teacher', 'parent'].includes(loginRole) ? `/academy/${loginRole}` : `/${loginRole}`
-            router.push(rolePath)
+            router.push(getRedirectPath(data.user))
           }
         }
       } catch (err) {
@@ -33,6 +31,33 @@ export default function LoginPage() {
     }
     checkAuth()
   }, [router])
+
+  // #2: Honor the user's chosen platform (academy / quran / both) when redirecting.
+  function getRedirectPath(u: {
+    role: string
+    has_academy_access?: boolean
+    has_quran_access?: boolean
+  }): string {
+    const role = u.role
+    // Admin / supervisor roles always go to their own panels
+    if (role === 'admin') return '/admin'
+    if (role === 'academy_admin') return '/academy/admin'
+    if (role === 'student_supervisor' || role === 'reciter_supervisor') return `/${role}`
+    if (role === 'fiqh_supervisor') return '/academy/fiqh-supervisor'
+    if (role === 'content_supervisor') return '/academy/content-supervisor'
+    if (role === 'supervisor') return '/academy/supervisor'
+    if (role === 'reader') return '/reader'
+    if (role === 'teacher') return '/academy/teacher'
+    if (role === 'parent') return '/academy/parent'
+
+    // Student: route based on platform access flags.
+    const hasAcademy = u.has_academy_access !== false
+    const hasQuran = u.has_quran_access !== false
+    if (hasAcademy && !hasQuran) return '/academy/student'
+    if (!hasAcademy && hasQuran) return '/student'
+    // Both available → default to academy (the primary platform); user can switch via ModeSwitcher.
+    return '/academy/student'
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -48,15 +73,16 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || t.auth.errorOccurred)
+        // In dev, the API returns a `debug` field with the underlying exception
+        // so we can immediately see why login is failing without digging into logs.
+        const message = data.debug ? `${data.error || t.auth.errorOccurred}: ${data.debug}` : (data.error || t.auth.errorOccurred)
+        setError(message)
         setLoading(false)
         return
       }
 
-      // Redirect based on role
-      const role = data.user?.role || 'student'
-      const rolePath = ['student', 'teacher', 'parent'].includes(role) ? `/academy/${role}` : `/${role}`
-      router.push(rolePath)
+      // #2: Redirect based on role and platform flags returned from the API.
+      router.push(getRedirectPath(data.user || { role: 'student' }))
     } catch {
       setError(t.auth.connectionError)
       setLoading(false)

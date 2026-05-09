@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     // Get paginated users
     const users = await query(
       `SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.avatar_url, u.is_accepting_recitations, u.gender,
+              u.has_academy_access, u.has_quran_access,
               (SELECT COUNT(*) FROM recitations r WHERE r.student_id = u.id) as recitations_count,
               rp.rating, rp.total_reviews, rp.nationality,
               EXISTS(
@@ -100,7 +101,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "غير مصرح" }, { status: 403 })
     }
 
-    const { userId, isActive, role, name, email, password, gender } = await req.json()
+    const { userId, isActive, role, name, email, password, gender, has_academy_access, has_quran_access } = await req.json()
 
     if (!userId) {
       return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
@@ -127,6 +128,31 @@ export async function PATCH(req: NextRequest) {
     if (typeof isActive === "boolean") {
       values.push(isActive)
       updates.push(`is_active = $${values.length}`)
+      // A-4/A-5: Keep is_disabled in sync so middleware can detect the change
+      // on the very next request without needing a full session refresh.
+      updates.push(`is_disabled = ${!isActive}`)
+      
+      // A-5: If disabling user, invalidate all sessions in real-time
+      // NOTE: We DO NOT call supabase.auth.admin.deleteUser — that would
+      // permanently delete the user. We only revoke sessions/tokens so the
+      // user is logged out everywhere on next request. The middleware (A-4)
+      // re-checks `is_active` from the DB on every sensitive request and
+      // will redirect to /login if the flag is false.
+      if (!isActive) {
+        try {
+          // 1) Delete all local session records (custom JWT sessions table)
+          await query(`DELETE FROM user_sessions WHERE user_id = $1`, [userId])
+
+          // 2) Delete refresh tokens so no new access tokens can be issued
+          await query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId])
+            .catch(() => { /* table may not exist in some envs */ })
+
+          console.log("[v0] A-5: Cleared all sessions/refresh tokens for disabled user:", userId)
+        } catch (err) {
+          console.error("[v0] A-5: Failed to clear sessions for disabled user:", err)
+          // Continue — middleware will still enforce is_active on next request
+        }
+      }
     }
 
     if (role) {
@@ -157,6 +183,16 @@ export async function PATCH(req: NextRequest) {
       values.push(gender)
       updates.push(`gender = $${values.length}`)
     }
+    
+    if (typeof has_academy_access === "boolean") {
+      values.push(has_academy_access)
+      updates.push(`has_academy_access = $${values.length}`)
+    }
+
+    if (typeof has_quran_access === "boolean") {
+      values.push(has_quran_access)
+      updates.push(`has_quran_access = $${values.length}`)
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({ error: "لا يوجد بيانات للتحديث" }, { status: 400 })
@@ -164,7 +200,7 @@ export async function PATCH(req: NextRequest) {
 
     values.push(userId)
     const result = await query(
-      `UPDATE users SET ${updates.join(", ")} WHERE id = $${values.length} RETURNING id, name, email, role, is_active`,
+      `UPDATE users SET ${updates.join(", ")} WHERE id = $${values.length} RETURNING id, name, email, role, is_active, has_academy_access, has_quran_access`,
       values
     )
 
@@ -204,7 +240,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "غير مصرح" }, { status: 403 })
     }
 
-    const { name, email, password, role, gender } = await req.json()
+    const { name, email, password, role, gender, has_academy_access, has_quran_access } = await req.json()
 
     if (!name || !email || !password || !role) {
       return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 })
@@ -231,10 +267,18 @@ export async function POST(req: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 10)
 
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, role, email_verified, is_active, gender, approval_status)
-       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, 'approved')
-       RETURNING id, name, email, role, is_active, created_at, gender`,
-      [name, email.toLowerCase(), passwordHash, role, gender || null]
+      `INSERT INTO users (name, email, password_hash, role, email_verified, is_active, gender, approval_status, has_academy_access, has_quran_access)
+       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, 'approved', $6, $7)
+       RETURNING id, name, email, role, is_active, created_at, gender, has_academy_access, has_quran_access`,
+      [
+        name, 
+        email.toLowerCase(), 
+        passwordHash, 
+        role, 
+        gender || null, 
+        has_academy_access !== false, 
+        has_quran_access !== false
+      ]
     )
 
     if (role === 'reader') {
