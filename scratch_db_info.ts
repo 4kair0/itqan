@@ -1,5 +1,5 @@
 
-import { query } from "./lib/db.ts";
+import { query } from "./lib/db";
 
 async function main() {
     try {
