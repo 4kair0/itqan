@@ -86,13 +86,49 @@ export async function POST(req: NextRequest) {
     ]
   )
 
-  // Notify the teacher's mailing list subscribers (fire-and-forget;
-  // we don't block the response on email delivery).
+  // Notify the teacher's mailing list subscribers and platform followers
+  // (fire-and-forget; we don't block the response on delivery).
   notifyMailingList(result[0]).catch(err => {
     console.error('[public-lessons] failed to notify mailing list:', err)
   })
+  notifyTeacherFollowers(result[0]).catch(err => {
+    console.error('[public-lessons] failed to notify followers:', err)
+  })
 
   return NextResponse.json({ data: result[0] }, { status: 201 })
+}
+
+async function notifyTeacherFollowers(lesson: {
+  id: string; teacher_id: string; title: string; public_slug: string;
+}) {
+  const teacher = await query<{ name: string | null }>(
+    `SELECT name FROM users WHERE id = $1`,
+    [lesson.teacher_id]
+  )
+  const teacherName = teacher[0]?.name || 'مدرّس'
+  await query(
+    `INSERT INTO notifications (user_id, type, title, message, action_url, action_label, priority, category, link, dedup_key)
+     SELECT tf.user_id,
+            'new_public_lesson',
+            $1,
+            $2,
+            $3,
+            'افتح الدرس',
+            'normal',
+            'session',
+            $3,
+            $4
+     FROM teacher_followers tf
+     WHERE tf.teacher_id = $5
+     ON CONFLICT DO NOTHING`,
+    [
+      `درس عام جديد من ${teacherName}`,
+      `أعلن ${teacherName} عن درس عام جديد: ${lesson.title}`,
+      `/lessons/${lesson.public_slug}`,
+      `public_lesson:${lesson.id}`,
+      lesson.teacher_id,
+    ]
+  )
 }
 
 async function notifyMailingList(lesson: {
