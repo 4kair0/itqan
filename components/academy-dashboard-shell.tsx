@@ -15,7 +15,7 @@ import {
   GraduationCap, PlayCircle, FileText, Target, Award, Star,
   HelpCircle, Megaphone, UserPlus, BarChart3, Clock, Video,
   BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield,
-  ShieldCheck
+  ShieldCheck, Library
 } from 'lucide-react'
 import { usePublicSettings } from '@/lib/hooks/use-public-settings'
 
@@ -37,6 +37,8 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/student/tasks', label: t.academy?.tasks || 'المهام', icon: ClipboardList },
             { href: '/academy/student/sessions', label: t.academy?.liveSessions || 'الجلسات الحية', icon: Video },
             { href: '/academy/student/path', label: t.academy?.learningPath || 'المسار التعليمي', icon: Route },
+            { href: '/academy/student/fiqh', label: 'أسئلتي الفقهية', icon: HelpCircle },
+            { href: '/academy/fiqh', label: 'مكتبة الفتاوى', icon: Library },
           ]
         },
         {
@@ -72,6 +74,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/teacher/students', label: t.academy?.myStudents || 'طلابي', icon: Users },
             { href: '/academy/teacher/halaqat', label: t.academy?.halaqat || 'الحلقات', icon: GraduationCap },
             { href: '/academy/teacher/parent-messages', label: 'رسائل أولياء الأمور', icon: MessageSquare },
+            { href: '/academy/fiqh', label: 'مكتبة الفتاوى', icon: Library },
           ]
         },
         {
@@ -127,6 +130,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
           items: [
             { href: '/academy/admin/forum', label: t.academy?.forum || 'المنتدى', icon: MessageSquare },
             { href: '/academy/admin/fiqh', label: t.academy?.fiqhQuestions || 'أسئلة فقهية', icon: HelpCircle },
+            { href: '/academy/admin/fiqh/officers', label: 'مسؤولو الفقه', icon: ShieldCheck },
             { href: '/academy/admin/announcements', label: t.admin?.announcements || 'الإعلانات', icon: Megaphone },
           ]
         },
@@ -152,6 +156,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/parent/reports', label: t.academy?.reports || 'التقارير', icon: FileText },
             { href: '/academy/parent/progress', label: t.academy?.progress || 'التقدم', icon: Target },
             { href: '/academy/parent/messages', label: 'الرسائل', icon: MessageSquare },
+            { href: '/academy/fiqh', label: 'مكتبة الفتاوى', icon: Library },
           ]
         },
         {
@@ -223,6 +228,7 @@ export function AcademyDashboardShell({
   } | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [avatarError, setAvatarError] = useState(false)
+  const [fiqhOfficer, setFiqhOfficer] = useState<{ is_officer: boolean; open_count: number }>({ is_officer: false, open_count: 0 })
   const { branding } = usePublicSettings()
 
   useEffect(() => {
@@ -246,15 +252,39 @@ export function AcademyDashboardShell({
         }
       } catch { }
     }
+    async function fetchOfficer() {
+      try {
+        const res = await fetch('/api/academy/fiqh/me')
+        if (res.ok) setFiqhOfficer(await res.json())
+      } catch { }
+    }
     fetchUser()
     fetchCounts()
+    fetchOfficer()
     const interval = setInterval(fetchCounts, 30000)
     return () => clearInterval(interval)
   }, [])
 
   const rawConfig = getAcademyRoleConfig(t, role)
   const userName = user?.name || rawConfig.name
-  const config = { ...rawConfig, name: userName }
+  // Conditionally inject the fiqh-officer inbox link for any role
+  const sectionsWithOfficer: NavSection[] = fiqhOfficer.is_officer
+    ? [
+        ...rawConfig.sections,
+        {
+          title: 'الإجابات الفقهية',
+          items: [
+            {
+              href: '/academy/officer/fiqh',
+              label: 'صندوق الأسئلة',
+              icon: ShieldCheck,
+              badge: fiqhOfficer.open_count > 0 ? fiqhOfficer.open_count : null,
+            },
+          ],
+        },
+      ]
+    : rawConfig.sections
+  const config = { ...rawConfig, name: userName, sections: sectionsWithOfficer }
 
   const isActive = (href: string) => {
     const basePath = `/academy/${role === 'academy_student' ? 'student' : role === 'academy_admin' ? 'admin' : role}`
