@@ -14,7 +14,8 @@ import {
   Menu, X, Users, Settings, Trophy, MessageSquare, ClipboardList,
   GraduationCap, PlayCircle, FileText, Target, Award, Star,
   HelpCircle, Megaphone, UserPlus, BarChart3, Clock, Video,
-  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield
+  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield,
+  ShieldCheck
 } from 'lucide-react'
 import { usePublicSettings } from '@/lib/hooks/use-public-settings'
 
@@ -49,6 +50,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
         {
           title: t.shell?.account || 'الحساب',
           items: [
+            { href: '/academy/student/parent-requests', label: 'طلبات ولي الأمر', icon: ShieldCheck },
             { href: '/academy/student/notifications', label: t.student?.notifications || 'الإشعارات', icon: Bell },
             { href: '/academy/student/profile', label: t.student?.profile || 'الملف الشخصي', icon: User },
           ]
@@ -69,6 +71,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/teacher/tasks', label: t.academy?.tasks || 'المهام', icon: ClipboardList },
             { href: '/academy/teacher/students', label: t.academy?.myStudents || 'طلابي', icon: Users },
             { href: '/academy/teacher/halaqat', label: t.academy?.halaqat || 'الحلقات', icon: GraduationCap },
+            { href: '/academy/teacher/parent-messages', label: 'رسائل أولياء الأمور', icon: MessageSquare },
           ]
         },
         {
@@ -148,6 +151,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/parent/children', label: t.academy?.myChildren || 'أبنائي', icon: Users },
             { href: '/academy/parent/reports', label: t.academy?.reports || 'التقارير', icon: FileText },
             { href: '/academy/parent/progress', label: t.academy?.progress || 'التقدم', icon: Target },
+            { href: '/academy/parent/messages', label: 'الرسائل', icon: MessageSquare },
           ]
         },
         {

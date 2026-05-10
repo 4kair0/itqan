@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { query } from "@/lib/db"
 import { createNotification } from "@/lib/notifications"
+import { isContentBlockedForStudent } from "@/lib/parent-helpers"
 
 // GET /api/recitations - list recitations
 export async function GET(req: NextRequest) {
@@ -83,6 +84,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "لديك تسجيل بانتظار المراجعة بالفعل. لا يمكنك إرسال تسجيل جديد حتى تظهر نتيجة التسجيل السابق." },
         { status: 409 }
+      )
+    }
+
+    // Enforce parent content restrictions (Al-Fatiha = surah 1)
+    const blocked = await isContentBlockedForStudent(session.sub, 'surah', '1')
+    if (blocked.blocked) {
+      return NextResponse.json(
+        {
+          error: `لا يمكنك تقديم تلاوة لهذه السورة لأن ولي الأمر${blocked.parentName ? ' (' + blocked.parentName + ')' : ''} قام بتقييد الوصول إليها.`,
+        },
+        { status: 403 }
       )
     }
 
