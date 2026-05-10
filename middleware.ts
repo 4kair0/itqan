@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const publicPaths = ["/", "/about", "/contact", "/sitemap-page", "/login", "/login-admin", "/register", "/reader-register", "/forgot-password", "/reset-password", "/verify", "/privacy", "/terms", "/maintenance"]
-const apiPublicPaths = ["/api/auth", "/api/admin/homepage", "/api/admin/analytics", "/api/uploadthing"]
+const publicPathPrefixes = ["/lessons"]
+const apiPublicPaths = ["/api/auth", "/api/admin/homepage", "/api/admin/analytics", "/api/uploadthing", "/api/public"]
 
 // Academy public paths (for public lessons and invitations)
 const academyPublicPaths = ["/academy/public", "/academy/invite", "/academy/lesson"]
@@ -21,6 +22,11 @@ export async function middleware(req: NextRequest) {
 
     // Allow public paths
     if (publicPaths.includes(pathname)) {
+        return NextResponse.next()
+    }
+
+    // Allow public path prefixes (e.g. /lessons/<slug>)
+    if (publicPathPrefixes.some(p => pathname === p || pathname.startsWith(p + '/'))) {
         return NextResponse.next()
     }
 

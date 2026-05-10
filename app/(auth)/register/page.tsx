@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, ChevronDown } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, ChevronDown, Sparkles } from 'lucide-react'
 
 export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false)
@@ -17,7 +17,9 @@ export default function RegisterPage() {
   const [role, setRole] = useState('student')
   const [platform, setPlatform] = useState('both')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t } = useI18n()
+  const lessonRef = searchParams?.get('ref') === 'lesson' ? searchParams.get('slug') : null
 
   useEffect(() => {
     async function checkAuth() {
@@ -111,6 +113,18 @@ export default function RegisterPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t.auth.registerTitle}</h1>
             <p className="text-muted-foreground">{t.auth.joinCommunityDesc}</p>
           </div>
+
+          {lessonRef && (
+            <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-100 flex items-start gap-3 text-sm">
+              <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="font-semibold">يا أهلاً! حضرت الدرس العام معانا 🌟</div>
+                <div className="text-emerald-800/80 dark:text-emerald-200/80">
+                  أكمل التسجيل عشان تنضم لدورات كاملة وتشوف باقي الدروس على المنصة.
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-center">
