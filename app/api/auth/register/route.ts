@@ -1,8 +1,41 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
+import { cookies } from "next/headers"
 import { query, queryOne } from "@/lib/db"
 import { signToken } from "@/lib/auth"
 import { sendVerificationEmail } from "@/lib/email"
+
+const REFERRAL_COOKIE = 'devin_lesson_referral'
+
+async function attributeLessonReferral(userId: string) {
+  try {
+    const jar = await cookies()
+    const referralId = jar.get(REFERRAL_COOKIE)?.value
+    if (!referralId) return
+    const updated = await query<{ lesson_id: string }>(
+      `UPDATE public_lesson_signup_referrals
+       SET converted_user_id = $1, converted_at = NOW()
+       WHERE id = $2 AND converted_user_id IS NULL
+       RETURNING lesson_id`,
+      [userId, referralId]
+    )
+    if (updated.length > 0) {
+      await query(
+        `UPDATE public_lessons SET signup_count = signup_count + 1
+         WHERE id = $1`,
+        [updated[0].lesson_id]
+      )
+      // Mark the new user so the dashboard shows them a teacher welcome popup.
+      await query(
+        `UPDATE users SET welcome_referral_id = $1 WHERE id = $2`,
+        [referralId, userId]
+      )
+    }
+    jar.delete(REFERRAL_COOKIE)
+  } catch (e) {
+    console.error('[register] failed to attribute lesson referral:', e)
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -84,6 +117,8 @@ export async function POST(req: NextRequest) {
     // Send verification email
     if (user) {
       await sendVerificationEmail(user.email, user.name, verificationCode)
+      // Attribute the signup back to the public lesson, if any.
+      await attributeLessonReferral(user.id)
     } else {
        throw new Error("فشل إنشاء سجل المستخدم")
     }

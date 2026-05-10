@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { AnalyticsTracker } from '@/components/analytics-tracker'
 import { LanguageProvider } from '@/lib/i18n/context'
 import { ThemeProvider } from '@/components/theme-provider'
+import { WelcomeTeacherPopup } from '@/components/welcome-teacher-popup'
 import './globals.css'
 
 const cairo = Cairo({
@@ -60,6 +61,7 @@ export default function RootLayout({
         >
           <LanguageProvider>
             {children}
+            <WelcomeTeacherPopup />
           </LanguageProvider>
         </ThemeProvider>
         <Analytics />
