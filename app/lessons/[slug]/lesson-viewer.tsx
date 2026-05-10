@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
-import { Calendar, Clock, User as UserIcon, Video, ExternalLink, Sparkles, Share2, Copy, Check, BookOpen } from 'lucide-react'
+import { Calendar, Clock, User as UserIcon, Video, ExternalLink, Sparkles, Share2, Copy, Check, BookOpen, Mail, Loader2 } from 'lucide-react'
 
 interface PublicLesson {
   id: string
@@ -160,6 +160,15 @@ export function LessonViewer({ lesson, initialState }: { lesson: PublicLesson; i
             />
           )}
         </div>
+
+        {/* Mailing list — visible in pre and post (not during live) */}
+        {state !== 'live' && (
+          <MailingListSubscribe
+            slug={lesson.slug}
+            teacherName={lesson.teacher.name}
+            variant={state === 'post' ? 'secondary' : 'primary'}
+          />
+        )}
 
         {/* Share */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 space-y-3">
@@ -322,6 +331,114 @@ function PostState({ onSignup, signingUp, teacherName }: {
       <p className="text-xs text-slate-500 pt-2">
         التسجيل سريع ومجاني، وستحصل على إشعارات بالدروس القادمة.
       </p>
+    </div>
+  )
+}
+
+function MailingListSubscribe({
+  slug,
+  teacherName,
+  variant,
+}: {
+  slug: string
+  teacherName: string | null
+  variant: 'primary' | 'secondary'
+}) {
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [done, setDone] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMessage(null)
+    if (!email.trim()) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/public/lessons/${slug}/mailing-list/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined, source: variant === 'secondary' ? 'public_lesson_post_cta' : 'public_lesson_pre_cta' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessage({ type: 'err', text: data.error || 'حدث خطأ' })
+      } else {
+        setDone(true)
+        setMessage({ type: 'ok', text: data.message || 'تمام! اتأكد بريدك.' })
+      }
+    } catch {
+      setMessage({ type: 'err', text: 'حدث خطأ في الشبكة' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const headline = variant === 'secondary'
+    ? 'مش عايز تسجّل دلوقتي؟'
+    : 'متابع للشيخ؟'
+  const sub = variant === 'secondary'
+    ? `سيب لنا بريدك ولما الشيخ ${teacherName || 'ده'} ينزل درس عام جديد، هنبعتلك إيميل.`
+    : `هنا تقدر تشترك في القائمة البريدية وتوصلك إيميلات بكل درس عام جديد للشيخ ${teacherName || 'ده'}.`
+
+  return (
+    <div className={`rounded-2xl shadow-xl p-6 sm:p-7 ${
+      variant === 'secondary'
+        ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-900'
+        : 'bg-white dark:bg-slate-900'
+    }`}>
+      <div className="flex items-start gap-3 mb-4">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+          variant === 'secondary' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+        }`}>
+          <Mail className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-lg leading-tight">{headline}</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{sub}</p>
+        </div>
+      </div>
+
+      {done ? (
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-sm">
+          {message?.text || 'بعتنالك إيميل تأكيد، افتحه واضغط على "تأكيد الاشتراك".'}
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr] gap-3">
+            <input
+              type="text"
+              placeholder="اسمك (اختياري)"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+            <input
+              type="email"
+              placeholder="بريدك الإلكتروني"
+              required
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              dir="ltr"
+              className="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting || !email.trim()}
+            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50"
+          >
+            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> جاري الاشتراك...</> : 'اشترك في القائمة البريدية'}
+          </button>
+          {message?.type === 'err' && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{message.text}</div>
+          )}
+          <p className="text-xs text-slate-500">
+            بضغطك على الزر إنت موافق على استلام إيميلات من الشيخ بس. تقدر تلغي اشتراكك في أي وقت بضغطة واحدة.
+          </p>
+        </form>
+      )}
     </div>
   )
 }

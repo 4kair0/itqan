@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { generatePublicSlug } from '@/lib/public-lessons'
+import { sendNewLessonNotificationEmail } from '@/lib/lesson-mailing-list'
 
 export async function GET(_req: NextRequest) {
   const session = await getSession()
@@ -61,7 +62,10 @@ export async function POST(req: NextRequest) {
   const provider = body.meeting_provider && ['zoom', 'google_meet', 'other'].includes(body.meeting_provider)
     ? body.meeting_provider : null
 
-  const result = await query(
+  const result = await query<{
+    id: string; teacher_id: string; title: string; description: string | null;
+    public_slug: string; scheduled_at: string;
+  }>(
     `INSERT INTO public_lessons
        (teacher_id, title, description, cover_image_url, public_slug,
         meeting_link, meeting_provider, meeting_password,
@@ -82,5 +86,58 @@ export async function POST(req: NextRequest) {
     ]
   )
 
+  // Notify the teacher's mailing list subscribers (fire-and-forget;
+  // we don't block the response on email delivery).
+  notifyMailingList(result[0]).catch(err => {
+    console.error('[public-lessons] failed to notify mailing list:', err)
+  })
+
   return NextResponse.json({ data: result[0] }, { status: 201 })
+}
+
+async function notifyMailingList(lesson: {
+  id: string; teacher_id: string; title: string;
+  description: string | null; public_slug: string; scheduled_at: string;
+}) {
+  const teacher = await query<{ name: string | null }>(
+    `SELECT name FROM users WHERE id = $1`,
+    [lesson.teacher_id]
+  )
+  const teacherName = teacher[0]?.name || 'منصة إتقان'
+
+  const subscribers = await query<{
+    email: string; name: string | null; unsubscribe_token: string;
+  }>(
+    `SELECT email, name, unsubscribe_token
+     FROM public_lesson_subscribers
+     WHERE teacher_id = $1
+       AND is_verified = true
+       AND unsubscribed_at IS NULL
+       AND unsubscribe_token IS NOT NULL`,
+    [lesson.teacher_id]
+  )
+  if (subscribers.length === 0) return
+
+  const base = process.env.NEXT_PUBLIC_APP_URL
+    || process.env.APP_URL
+    || 'https://itqan.community'
+  const lessonUrl = `${base}/lessons/${lesson.public_slug}`
+
+  // Send sequentially to avoid swamping the SMTP transport
+  for (const s of subscribers) {
+    try {
+      await sendNewLessonNotificationEmail({
+        to: s.email,
+        name: s.name,
+        teacherName,
+        lessonTitle: lesson.title,
+        lessonDescription: lesson.description,
+        lessonScheduledAt: lesson.scheduled_at,
+        lessonUrl,
+        unsubscribeToken: s.unsubscribe_token,
+      })
+    } catch (e) {
+      console.error('[public-lessons] failed to email subscriber', s.email, e)
+    }
+  }
 }
