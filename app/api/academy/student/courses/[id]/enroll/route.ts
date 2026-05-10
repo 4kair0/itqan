@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { isContentBlockedForStudent } from '@/lib/parent-helpers'
 
 export async function POST(
   req: NextRequest,
@@ -20,6 +21,21 @@ export async function POST(
 
     if (existing.length > 0) {
       return NextResponse.json({ error: 'طلب انضمام مسبق موجود' }, { status: 409 })
+    }
+
+    // Enforce parent content restrictions: courses can be blocked via memorization_path or tajweed_path target
+    if (session.role === 'student') {
+      const memBlocked = await isContentBlockedForStudent(session.sub, 'memorization_path', courseId)
+      const tajBlocked = await isContentBlockedForStudent(session.sub, 'tajweed_path', courseId)
+      const block = memBlocked.blocked ? memBlocked : tajBlocked.blocked ? tajBlocked : null
+      if (block) {
+        return NextResponse.json(
+          {
+            error: `لا يمكنك التسجيل في هذه الدورة لأن ولي الأمر${block.parentName ? ' (' + block.parentName + ')' : ''} قام بتقييد الوصول إليها.`,
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // 2. Insert new enrollment request

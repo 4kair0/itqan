@@ -25,6 +25,7 @@ export default function LinkChildPage() {
   const [relation, setRelation] = useState('father')
   const [linking, setLinking] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,19 +60,26 @@ export default function LinkChildPage() {
     if (!student) return
     setLinking(true)
     setError('')
+    setPendingMessage(null)
     
     try {
       const res = await fetch('/api/academy/parent/link-child', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'link', child_id: student.id, relation })
+        body: JSON.stringify({ action: 'request', child_id: student.id, relation })
       })
       const data = await res.json()
       
       if (!res.ok) {
-        setError(data.error || (isAr ? 'فشل الربط' : 'Linking failed'))
+        setError(data.error || (isAr ? 'فشل إرسال الطلب' : 'Request failed'))
       } else {
         setSuccess(true)
+        setPendingMessage(
+          data.message ||
+            (isAr
+              ? 'تم إرسال طلب الربط للطالب. سيظهر الربط بعد موافقته.'
+              : 'Request sent to student. Link will activate after they confirm.')
+        )
         setStudent(null)
         setEmail('')
       }
@@ -130,12 +138,13 @@ export default function LinkChildPage() {
              <div className="mt-6 p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col items-center text-center gap-3 animate-in fade-in slide-in-from-bottom-4">
               <CheckCircle2 className="w-12 h-12 text-emerald-500" />
               <h4 className="text-lg font-black text-emerald-700 dark:text-emerald-400">
-                {isAr ? "تم ربط الطالب بنجاح!" : "Student linked successfully!"}
+                {isAr ? "تم إرسال طلب الربط" : "Link request sent"}
               </h4>
-              <p className="text-sm font-medium text-emerald-600/80 dark:text-emerald-400/80 max-w-sm">
-                {isAr 
-                  ? "يمكنك الآن متابعة تقدم ابنك من لوحة التحكم." 
-                  : "You can now track your child's progress from the dashboard."}
+              <p className="text-sm font-medium text-emerald-600/80 dark:text-emerald-400/80 max-w-md">
+                {pendingMessage ||
+                  (isAr
+                    ? "تم إرسال كود التأكيد للطالب على بريده الإلكتروني وداخل المنصة. عند موافقته يصبح الحساب مربوطاً."
+                    : "A confirmation code was sent to the student via email and in-app. The link activates after they confirm.")}
               </p>
             </div>
           )}

@@ -166,14 +166,22 @@ export default function ParentDashboard() {
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        <Button variant="outline" asChild className="rounded-xl border-border hover:bg-muted font-bold">
-                          <Link href={`/academy/parent/reports?child=${child.child_id}`}>
-                            {isAr ? "التقارير" : "Reports"}
-                          </Link>
-                        </Button>
-                        <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
-                        </div>
+                        {child.status === 'active' ? (
+                          <>
+                            <Button variant="outline" asChild className="rounded-xl border-border hover:bg-muted font-bold">
+                              <Link href={`/academy/parent/children/${child.child_id}`}>
+                                {isAr ? "فتح صفحة الابن" : "Open page"}
+                              </Link>
+                            </Button>
+                            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{isAr ? "بانتظار موافقة الطالب" : "Pending student approval"}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
