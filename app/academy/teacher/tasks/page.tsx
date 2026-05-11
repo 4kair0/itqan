@@ -17,9 +17,8 @@ export default function TeacherTasksPage() {
       try {
         const res = await fetch('/api/academy/teacher/tasks')
         if (res.ok) {
-          const json = await res.json()
-          // API returns { data: rows }; older shape returned an array directly
-          setTasks(Array.isArray(json) ? json : json.data || [])
+          const data = await res.json()
+          setTasks(data)
         }
       } catch (error) {
         console.error('Failed to fetch tasks:', error)

@@ -8,12 +8,7 @@ const fs = require('fs')
 const path = require('path')
 
 const SUPABASE_URL = 'https://lrrhqjvgippgrlcozrvr.supabase.co'
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-
-if (!SERVICE_KEY) {
-  console.error('Error: SUPABASE_SERVICE_ROLE_KEY environment variable is required')
-  process.exit(1)
-}
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || ''
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 

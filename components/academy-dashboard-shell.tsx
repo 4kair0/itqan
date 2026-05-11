@@ -14,7 +14,8 @@ import {
   Menu, X, Users, Settings, Trophy, MessageSquare, ClipboardList,
   GraduationCap, PlayCircle, FileText, Target, Award, Star,
   HelpCircle, Megaphone, UserPlus, BarChart3, Clock, Video,
-  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield, Archive
+  BookMarked, Route, Globe, Sparkles, Grid, UserCheck, Shield, Archive,
+  ShieldCheck, Library, Layers, Zap
 } from 'lucide-react'
 import { usePublicSettings } from '@/lib/hooks/use-public-settings'
 
@@ -41,14 +42,26 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/student/sessions', label: t.academy?.liveSessions || 'الجلسات الحية', icon: Video },
             { href: '/academy/student/path', label: t.academy?.learningPath || 'المسار التعليمي', icon: Route },
             { href: '/academy/student/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
+            { href: '/academy/student/series', label: t.academy?.series || 'السلاسل التعليمية', icon: Layers },
             { href: '/academy/student/fiqh', label: t.academy?.fiqhQuestions || 'أسئلة فقهية', icon: HelpCircle },
+            { href: '/academy/fiqh', label: t.academy?.fiqhLibrary || 'مكتبة الفتاوى', icon: Library },
+          ]
+        },
+        {
+          title: t.academy?.community || 'المجتمع',
+          items: [
+            { href: '/community/academy/forum', label: t.academy?.forum || 'المنتدى', icon: MessageSquare },
+            { href: '/community/academy/consultations', label: t.academy?.consultations || 'الاستشارات', icon: HelpCircle },
+            { href: '/community/academy/articles', label: t.academy?.articles || 'المقالات', icon: BookOpen },
           ]
         },
         {
           title: t.academy?.achievements || 'الإنجازات',
           items: [
             { href: '/academy/student/progress', label: t.academy?.progress || 'تقدمي', icon: Target },
-            { href: '/academy/student/leaderboard', label: t.academy?.leaderboard || 'لوحة المتصدرين', icon: Trophy },
+            { href: '/academy/student/competitions', label: t.academy?.competitions || 'المسابقات', icon: Trophy },
+            { href: '/academy/student/points', label: t.academy?.myPoints || 'نقاطي', icon: Zap },
+            { href: '/academy/student/leaderboard', label: t.academy?.leaderboard || 'لوحة المتصدرين', icon: Star },
             { href: '/academy/student/badges', label: t.academy?.badges || 'الشارات', icon: Award },
             { href: '/academy/student/certificates', label: t.academy?.certificates || 'الشهادات', icon: GraduationCap },
           ]
@@ -58,6 +71,7 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
           items: [
             { href: '/academy/student/notifications', label: t.student?.notifications || 'الإشعارات', icon: Bell },
             { href: '/academy/student/profile', label: t.student?.profile || 'الملف الشخصي', icon: User },
+            { href: '/academy/student/parent-requests', label: t.academy?.parentRequests || 'طلبات ولي الأمر', icon: ShieldCheck },
           ]
         }
       ],
@@ -78,6 +92,8 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/teacher/students', label: t.academy?.myStudents || 'طلابي', icon: Users },
             { href: '/academy/teacher/halaqat', label: t.academy?.halaqat || 'الحلقات', icon: GraduationCap },
             { href: '/academy/teacher/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
+            { href: '/academy/teacher/parent-messages', label: t.academy?.parentMessages || 'رسائل أولياء الأمور', icon: MessageSquare },
+            { href: '/academy/teacher/public-lessons', label: t.academy?.publicLessons || 'الدروس العامة', icon: Globe },
           ]
         },
         {
@@ -139,6 +155,8 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
           items: [
             { href: '/academy/admin/forum', label: t.academy?.forum || 'المنتدى', icon: MessageSquare },
             { href: '/academy/admin/fiqh', label: t.academy?.fiqhQuestions || 'أسئلة فقهية', icon: HelpCircle },
+            { href: '/academy/admin/fiqh/officers', label: t.academy?.fiqhOfficers || 'مسؤولو الفتوى', icon: ShieldCheck },
+            { href: '/academy/admin/series', label: t.academy?.series || 'السلاسل التعليمية', icon: Layers },
             { href: '/academy/admin/announcements', label: t.admin?.announcements || 'الإعلانات', icon: Megaphone },
             { href: '/academy/admin/chat', label: t.academy?.chat || 'الرسائل', icon: MessageSquare },
           ]
@@ -162,8 +180,11 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
           items: [
             { href: '/academy/parent', label: t.academy?.dashboard || 'لوحة التحكم', icon: LayoutDashboard },
             { href: '/academy/parent/children', label: t.academy?.myChildren || 'أبنائي', icon: Users },
+            { href: '/academy/parent/link-child', label: t.academy?.linkChild || 'ربط ابن جديد', icon: UserPlus },
             { href: '/academy/parent/reports', label: t.academy?.reports || 'التقارير', icon: FileText },
             { href: '/academy/parent/progress', label: t.academy?.progress || 'التقدم', icon: Target },
+            { href: '/academy/parent/messages', label: t.academy?.teacherMessages || 'مراسلة المدرسين', icon: MessageSquare },
+            { href: '/academy/parent/reader-messages', label: t.academy?.readerMessages || 'مراسلة المقرئين', icon: MessageSquare },
           ]
         },
         {

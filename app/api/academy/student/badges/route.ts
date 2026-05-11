@@ -1,89 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { query } from '@/lib/db'
-import { BADGE_CATALOGUE, BadgeType } from '@/lib/academy/gamification'
+import { getAllBadgeDefinitions, getUserBadges } from '@/lib/academy/badges'
 
-/**
- * GET /api/academy/student/badges
- *
- * Returns the user's badges as a list of categories. Each category contains
- * every badge in the catalogue with `is_earned` set, so the UI can render
- * locked + unlocked badges in one pass — matching the existing badges page.
- *
- * Response shape:
- *   {
- *     categories: [
- *       { name, badges: [{ id, name, description, criteria_type, criteria_value,
- *                          points_required, is_earned, earned_at? }] }
- *     ],
- *     stats: { total, earned }
- *   }
- */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['student', 'teacher', 'parent', 'academy_admin'].includes(session.role)) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const earnedRows = await query<{
-      badge_type: BadgeType
-      awarded_at: string
-      points_awarded: number
-    }>(
-      `SELECT badge_type, awarded_at, points_awarded
-         FROM badges
-        WHERE user_id = $1`,
-      [session.sub]
-    )
-    const earnedMap = new Map(earnedRows.map(r => [r.badge_type, r]))
+    const [definitions, earned] = await Promise.all([
+      getAllBadgeDefinitions(),
+      getUserBadges(session.sub),
+    ])
+
+    const earnedKeys = new Set(earned.map(b => b.badge_key))
 
     // Group by category
-    const categoriesMap = new Map<
-      string,
-      Array<{
-        id: string
-        name: string
-        description: string
-        criteria_type: string
-        criteria_value?: number
-        points_required?: number
-        is_earned: boolean
-        earned_at?: string
-      }>
-    >()
-
-    for (const def of BADGE_CATALOGUE) {
-      const earned = earnedMap.get(def.badge_type)
-      const list = categoriesMap.get(def.category) ?? []
-      list.push({
-        id: def.badge_type,
-        name: def.name,
-        description: def.description,
-        criteria_type: def.criteria_type,
-        criteria_value: def.criteria_value,
-        points_required:
-          def.criteria_type === 'points' ? def.criteria_value : undefined,
-        is_earned: !!earned,
-        earned_at: earned?.awarded_at,
-      })
-      categoriesMap.set(def.category, list)
+    const categoryMap: Record<string, { name: string; badges: any[] }> = {}
+    const CATEGORY_LABELS: Record<string, string> = {
+      recitation: 'التلاوة',
+      memorization: 'الحفظ',
+      streak: 'الاستمرارية',
+      mastery: 'الإتقان',
+      special: 'شارات خاصة',
+      achievement: 'إنجازات',
     }
 
-    const categories = Array.from(categoriesMap.entries()).map(([name, badges]) => ({
-      name,
-      badges,
-    }))
+    for (const def of definitions) {
+      const cat = def.category || 'achievement'
+      if (!categoryMap[cat]) {
+        categoryMap[cat] = { name: CATEGORY_LABELS[cat] || cat, badges: [] }
+      }
 
-    const total = BADGE_CATALOGUE.length
-    const earnedCount = earnedRows.length
+      const earnedBadge = earned.find(e => e.badge_key === def.badge_key)
+      categoryMap[cat].badges.push({
+        id: def.id,
+        name: def.badge_name,
+        description: def.badge_description,
+        icon: def.badge_icon,
+        icon_url: def.badge_image_url,
+        color: def.badge_color,
+        points_awarded: def.points_awarded,
+        criteria_type: def.criteria_type,
+        criteria_value: def.criteria_value,
+        category: def.category,
+        badge_key: def.badge_key,
+        is_earned: earnedKeys.has(def.badge_key),
+        earned_at: earnedBadge?.awarded_at || null,
+      })
+    }
+
+    const categories = Object.values(categoryMap)
 
     return NextResponse.json({
       categories,
-      stats: { total, earned: earnedCount },
+      total: definitions.length,
+      earned_count: earnedKeys.size,
+      earned_badges: earned,
     })
   } catch (error) {
-    console.error('[API] student/badges GET error:', error)
+    console.error('Error fetching badges:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

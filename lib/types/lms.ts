@@ -285,3 +285,44 @@ export interface LinkParentStudentRequest {
   student_id: string
   relationship_type?: RelationshipType
 }
+
+/**
+ * SERIES (سلاسل الدروس)
+ */
+
+export interface Series {
+  id: string
+  title: string
+  description?: string
+  thumbnail_url?: string
+  subject?: string
+  teacher_id?: string
+  is_published: boolean
+  display_order: number
+  created_at: Date
+  updated_at: Date
+}
+
+export type SeriesItemType = 'course' | 'path'
+
+export interface SeriesItem {
+  id: string
+  series_id: string
+  item_type: SeriesItemType
+  course_id?: string
+  path_id?: string
+  order_index: number
+  created_at: Date
+}
+
+export interface SeriesWithDetails extends Series {
+  teacher_name?: string
+  items_count?: number
+  courses_count?: number
+  paths_count?: number
+}
+
+export interface SeriesItemWithDetails extends SeriesItem {
+  title?: string
+  description?: string
+}

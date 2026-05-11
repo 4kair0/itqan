@@ -29,6 +29,7 @@ export type NotificationType =
     | "task_marked_done"          // teacher: student self-marked a task done
     | "memorization_goal_set"     // student: teacher set a weekly memorization goal
     | "memorization_goal_completed" // teacher+student: goal completed
+    | "streak_reminder"           // student: reminder to maintain daily streak
     | "general"
 
 export interface CreateNotificationInput {
@@ -39,7 +40,7 @@ export interface CreateNotificationInput {
     category?:
         | "recitation" | "session" | "account" | "general" | "message"
         | "announcement" | "booking" | "course" | "task" | "reminder"
-        | "goal" | "system" | "review"
+        | "goal" | "system" | "review" | "fiqh"
     link?: string                 // optional navigation link
     relatedRecitationId?: string
     relatedBookingId?: string

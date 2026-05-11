@@ -1,267 +1,207 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useEffect, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Users, Check, X, Loader2, UserCheck, Clock, AlertCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Loader2, ShieldCheck, ShieldX, UserCircle2, Mail, Check, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/context'
-import { toast } from 'sonner'
 
-interface ParentRequest {
+interface PendingRequest {
   id: string
   parent_id: string
   parent_name: string
   parent_email: string
   parent_avatar: string | null
   relation: string
-  status: 'pending' | 'active' | 'rejected'
-  created_at: string
+  requested_at: string
+  link_code_expires_at: string | null
 }
 
-const relationLabels: Record<string, { ar: string; en: string }> = {
+const RELATION_LABELS: Record<string, { ar: string; en: string }> = {
   father: { ar: 'أب', en: 'Father' },
   mother: { ar: 'أم', en: 'Mother' },
-  guardian: { ar: 'ولي أمر', en: 'Guardian' },
-  other: { ar: 'آخر', en: 'Other' },
+  guardian: { ar: 'ولي أمر آخر', en: 'Other Guardian' },
 }
 
-export default function ParentRequestsPage() {
-  const { t, locale } = useI18n()
+export default function StudentParentRequestsPage() {
+  const { locale } = useI18n()
   const isAr = locale === 'ar'
-  
-  const [requests, setRequests] = useState<ParentRequest[]>([])
+  const [requests, setRequests] = useState<PendingRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [code, setCode] = useState<Record<string, string>>({})
+  const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
-  useEffect(() => {
-    fetchRequests()
-  }, [])
-
-  const fetchRequests = async () => {
+  const load = async () => {
+    setLoading(true)
     try {
       const res = await fetch('/api/academy/student/parent-requests')
-      if (res.ok) {
-        const data = await res.json()
-        setRequests(data.requests || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch parent requests:', error)
+      const data = await res.json()
+      if (res.ok) setRequests(data.requests || [])
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
-    setActionLoading(requestId)
+  useEffect(() => {
+    load()
+  }, [])
+
+  const handleAction = async (id: string, action: 'confirm' | 'reject') => {
+    setSubmittingId(id)
+    setMessage(null)
     try {
       const res = await fetch('/api/academy/student/parent-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: requestId, action }),
+        body: JSON.stringify({
+          id,
+          action,
+          code: action === 'confirm' ? code[id] : undefined,
+        }),
       })
-      
       const data = await res.json()
-      
-      if (res.ok) {
-        toast.success(data.message)
-        // Update local state
-        setRequests(prev => prev.map(r => 
-          r.id === requestId 
-            ? { ...r, status: action === 'approve' ? 'active' : 'rejected' }
-            : r
-        ))
+      if (!res.ok) {
+        setMessage({
+          kind: 'err',
+          text: data.error || (isAr ? 'فشل التنفيذ' : 'Action failed'),
+        })
       } else {
-        toast.error(data.error || 'حدث خطأ')
+        setMessage({
+          kind: 'ok',
+          text:
+            action === 'confirm'
+              ? isAr
+                ? 'تم قبول طلب الربط'
+                : 'Link request confirmed'
+              : isAr
+              ? 'تم رفض الطلب'
+              : 'Request rejected',
+        })
+        await load()
       }
-    } catch (error) {
-      toast.error('حدث خطأ في الاتصال')
     } finally {
-      setActionLoading(null)
+      setSubmittingId(null)
     }
   }
 
-  const pendingRequests = requests.filter(r => r.status === 'pending')
-  const otherRequests = requests.filter(r => r.status !== 'pending')
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold">{isAr ? 'طلبات ربط أولياء الأمور' : 'Parent Link Requests'}</h1>
-        <p className="text-muted-foreground mt-1">
-          {isAr 
-            ? 'هنا يمكنك قبول أو رفض طلبات ربط حسابك من أولياء الأمور'
-            : 'Here you can approve or reject parent link requests'}
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+          <ShieldCheck className="w-4 h-4" />
+          {isAr ? 'طلبات ولي الأمر' : 'Parent Requests'}
+        </div>
+        <h1 className="text-3xl font-black">
+          {isAr ? 'إدارة ربط ولي الأمر' : 'Manage Parent Linking'}
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          {isAr
+            ? 'هنا تظهر طلبات الربط المرسلة من أولياء الأمور. اقبل الطلب فقط بعد التحقق من هوية المرسل والكود الذي تلقيته.'
+            : 'Pending parent link requests appear here. Confirm only after verifying the sender and the code you received.'}
         </p>
       </div>
 
-      {/* Pending Requests */}
-      {pendingRequests.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-600" />
-              <CardTitle className="text-lg">
-                {isAr ? 'طلبات في الانتظار' : 'Pending Requests'}
-              </CardTitle>
-              <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                {pendingRequests.length}
-              </Badge>
-            </div>
-            <CardDescription>
-              {isAr 
-                ? 'هذه الطلبات تحتاج إلى موافقتك أو رفضك'
-                : 'These requests need your approval or rejection'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {pendingRequests.map(request => (
-              <div 
-                key={request.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-background rounded-lg border"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={request.parent_avatar || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {request.parent_name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{request.parent_name}</p>
-                    <p className="text-sm text-muted-foreground">{request.parent_email}</p>
-                    <Badge variant="outline" className="mt-1">
-                      {relationLabels[request.relation]?.[isAr ? 'ar' : 'en'] || request.relation}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex gap-2 sm:flex-shrink-0">
-                  <Button
-                    size="sm"
-                    onClick={() => handleAction(request.id, 'approve')}
-                    disabled={actionLoading === request.id}
-                    className="gap-2"
-                  >
-                    {actionLoading === request.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4" />
-                    )}
-                    {isAr ? 'قبول' : 'Approve'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAction(request.id, 'reject')}
-                    disabled={actionLoading === request.id}
-                    className="gap-2 text-destructive hover:text-destructive"
-                  >
-                    <X className="w-4 h-4" />
-                    {isAr ? 'رفض' : 'Reject'}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {message && (
+        <div
+          className={`p-4 rounded-2xl border ${
+            message.kind === 'ok'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700'
+              : 'bg-red-500/10 border-red-500/30 text-red-700'
+          }`}
+        >
+          {message.text}
+        </div>
       )}
 
-      {/* No Pending Requests */}
-      {pendingRequests.length === 0 && (
+      {loading ? (
         <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <UserCheck className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-medium text-lg mb-2">
-                {isAr ? 'لا توجد طلبات معلقة' : 'No Pending Requests'}
-              </h3>
-              <p className="text-muted-foreground max-w-md">
-                {isAr 
-                  ? 'عندما يطلب ولي أمر ربط حسابه بحسابك، سيظهر الطلب هنا لتتمكن من الموافقة أو الرفض'
-                  : 'When a parent requests to link their account to yours, the request will appear here'}
-              </p>
-            </div>
+          <CardContent className="p-12 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
-      )}
-
-      {/* History */}
-      {otherRequests.length > 0 && (
+      ) : requests.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {isAr ? 'سجل الطلبات' : 'Request History'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {otherRequests.map(request => (
-                <div 
-                  key={request.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={request.parent_avatar || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {request.parent_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{request.parent_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {relationLabels[request.relation]?.[isAr ? 'ar' : 'en'] || request.relation}
-                      </p>
+          <CardContent className="p-12 text-center text-muted-foreground">
+            <ShieldX className="w-10 h-10 mx-auto mb-3 opacity-60" />
+            <p>{isAr ? 'لا توجد طلبات ربط معلقة.' : 'No pending link requests.'}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((r) => {
+            const rel = RELATION_LABELS[r.relation]
+            const expires = r.link_code_expires_at
+              ? new Date(r.link_code_expires_at).toLocaleDateString(isAr ? 'ar-SA' : 'en-US')
+              : null
+            return (
+              <Card key={r.id} className="border-border/50 rounded-3xl overflow-hidden">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <UserCircle2 className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold">{r.parent_name}</h3>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground" dir="ltr">
+                        <Mail className="w-3 h-3" /> {r.parent_email}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {isAr ? 'صفة:' : 'Relation:'}{' '}
+                        <span className="font-semibold text-foreground">
+                          {rel ? (isAr ? rel.ar : rel.en) : r.relation}
+                        </span>
+                      </div>
+                      {expires && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {isAr ? `صالح حتى ${expires}` : `Expires ${expires}`}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <Badge 
-                    variant={request.status === 'active' ? 'default' : 'secondary'}
-                    className={request.status === 'active' 
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }
-                  >
-                    {request.status === 'active' 
-                      ? (isAr ? 'مربوط' : 'Linked')
-                      : (isAr ? 'مرفوض' : 'Rejected')
-                    }
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Info Card */}
-      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-        <CardContent className="py-4">
-          <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-blue-900 dark:text-blue-100">
-                {isAr ? 'ملاحظة مهمة' : 'Important Note'}
-              </p>
-              <p className="text-blue-700 dark:text-blue-300 mt-1">
-                {isAr 
-                  ? 'عند قبول طلب ولي الأمر، سيتمكن من متابعة تقدمك الدراسي ودرجاتك. يمكنك إلغاء الربط في أي وقت.'
-                  : 'When you approve a parent request, they will be able to track your academic progress and grades. You can unlink at any time.'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <Input
+                      placeholder={isAr ? 'أدخل كود التأكيد المُستلم' : 'Enter confirmation code'}
+                      value={code[r.id] || ''}
+                      onChange={(e) => setCode({ ...code, [r.id]: e.target.value })}
+                      className="h-12 flex-1 text-center font-mono tracking-widest"
+                      maxLength={8}
+                      dir="ltr"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleAction(r.id, 'confirm')}
+                        disabled={submittingId === r.id || !(code[r.id] && code[r.id].length >= 4)}
+                        className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {submittingId === r.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 me-1" />
+                            {isAr ? 'قبول' : 'Confirm'}
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleAction(r.id, 'reject')}
+                        disabled={submittingId === r.id}
+                        className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
+                      >
+                        <X className="w-4 h-4 me-1" />
+                        {isAr ? 'رفض' : 'Reject'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,20 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, BookOpen, Target, UserMinus, Plus, Loader2, AlertTriangle } from 'lucide-react'
+import { Users, BookOpen, Target, UserMinus, Plus, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 
 interface LinkedChild {
   id: string
@@ -27,6 +16,8 @@ interface LinkedChild {
   relation: string
   status: string
   linked_at: string
+  confirmed_at: string | null
+  requested_at: string
 }
 
 export default function ParentChildrenPage() {
@@ -34,8 +25,6 @@ export default function ParentChildrenPage() {
   const isAr = locale === 'ar'
   const [children, setChildren] = useState<LinkedChild[]>([])
   const [loading, setLoading] = useState(true)
-  const [unlinkingChild, setUnlinkingChild] = useState<LinkedChild | null>(null)
-  const [unlinkLoading, setUnlinkLoading] = useState(false)
 
   useEffect(() => {
     fetchChildren()
@@ -59,33 +48,6 @@ export default function ParentChildrenPage() {
     if (rel === 'father') return isAr ? 'أب' : 'Father'
     if (rel === 'mother') return isAr ? 'أم' : 'Mother'
     return isAr ? 'ولي أمر' : 'Guardian'
-  }
-
-  const handleUnlink = async () => {
-    if (!unlinkingChild) return
-    
-    setUnlinkLoading(true)
-    try {
-      const res = await fetch('/api/academy/parent/children', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ child_id: unlinkingChild.child_id }),
-      })
-      
-      const data = await res.json()
-      
-      if (res.ok) {
-        toast.success(data.message || (isAr ? 'تم إلغاء الربط بنجاح' : 'Successfully unlinked'))
-        setChildren(prev => prev.filter(c => c.child_id !== unlinkingChild.child_id))
-      } else {
-        toast.error(data.error || (isAr ? 'حدث خطأ' : 'Error occurred'))
-      }
-    } catch (error) {
-      toast.error(isAr ? 'حدث خطأ في الاتصال' : 'Connection error')
-    } finally {
-      setUnlinkLoading(false)
-      setUnlinkingChild(null)
-    }
   }
 
   if (loading) {
@@ -156,75 +118,45 @@ export default function ParentChildrenPage() {
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
                       <span className="text-xs font-bold uppercase">{isAr ? "الحالة" : "Status"}</span>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
-                    </div>
+                    {child.status === 'active' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{isAr ? "بانتظار موافقة الطالب" : "Awaiting student approval"}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="w-px h-12 bg-border/50" />
                   
                   <div className="text-center space-y-1">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                      <span className="text-xs font-bold uppercase">{isAr ? "تاريخ الربط" : "Linked On"}</span>
+                      <span className="text-xs font-bold uppercase">{isAr ? "تاريخ الطلب" : "Requested On"}</span>
                     </div>
                     <p className="text-sm font-bold text-foreground" dir="ltr">{new Date(child.linked_at).toLocaleDateString('ar-EG')}</p>
                   </div>
                 </div>
 
                 <div className="p-6 bg-muted/20 border-t border-border/50 flex items-center gap-4">
-                  <Button variant="default" asChild className="flex-1 bg-card border border-border text-foreground hover:bg-muted font-bold rounded-xl h-12 shadow-sm">
-                    <Link href={`/academy/parent/reports?child=${child.child_id}`}>
-                      {isAr ? "عرض التقارير الكاملة" : "View Full Reports"}
-                    </Link>
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-12 w-12 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => setUnlinkingChild(child)}
-                    title={isAr ? "إلغاء الربط" : "Unlink"}
-                  >
-                    <UserMinus className="w-5 h-5" />
-                  </Button>
+                  {child.status === 'active' ? (
+                    <Button variant="default" asChild className="flex-1 bg-primary text-primary-foreground font-bold rounded-xl h-12 shadow-sm">
+                      <Link href={`/academy/parent/children/${child.child_id}`}>
+                        {isAr ? "عرض صفحة الابن" : "Open child page"}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <div className="flex-1 text-sm text-muted-foreground text-center">
+                      {isAr ? "سيظهر رابط الصفحة بعد موافقة الطالب" : "Link will appear after student confirms"}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-
-      {/* Unlink Confirmation Dialog */}
-      <AlertDialog open={!!unlinkingChild} onOpenChange={() => setUnlinkingChild(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-              {isAr ? 'تأكيد إلغاء الربط' : 'Confirm Unlink'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isAr 
-                ? `هل أنت متأكد من إلغاء ربط ${unlinkingChild?.child_name}؟ لن تتمكن من متابعة تقدمه الدراسي بعد ذلك.`
-                : `Are you sure you want to unlink ${unlinkingChild?.child_name}? You will no longer be able to track their progress.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={unlinkLoading}>
-              {isAr ? 'إلغاء' : 'Cancel'}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleUnlink}
-              disabled={unlinkLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {unlinkLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                isAr ? 'إلغاء الربط' : 'Unlink'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

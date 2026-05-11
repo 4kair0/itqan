@@ -1,399 +1,298 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  HelpCircle,
+  BookOpen,
   Plus,
   Loader2,
-  CheckCircle2,
+  Library,
   Clock,
-  BookOpen,
+  CheckCircle2,
+  HelpCircle,
+  Send,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/context'
-import { cn } from '@/lib/utils'
 
-interface FiqhQuestion {
+interface Question {
   id: string
+  title: string | null
   question: string
-  category: string
   answer: string | null
-  answered_by: string | null
-  answered_by_name: string | null
+  category_id: string | null
+  category_slug: string | null
+  category_name_ar: string | null
+  status: string
+  publish_consent: string
+  is_anonymous: boolean
   is_published: boolean
-  created_at: string
+  asked_at: string
   answered_at: string | null
+  officer_name: string | null
 }
 
-const CATEGORIES = [
-  { id: 'tajweed', ar: 'أحكام التجويد', en: 'Tajweed Rulings' },
-  { id: 'salah', ar: 'الصلاة', en: 'Prayer' },
-  { id: 'tahara', ar: 'الطهارة', en: 'Purity' },
-  { id: 'sawm', ar: 'الصيام', en: 'Fasting' },
-  { id: 'zakah', ar: 'الزكاة', en: 'Zakah' },
-  { id: 'hajj', ar: 'الحج والعمرة', en: 'Hajj & Umrah' },
-  { id: 'quran', ar: 'علوم القرآن', en: 'Quranic Sciences' },
-  { id: 'aqeedah', ar: 'العقيدة', en: 'Aqeedah' },
-  { id: 'general', ar: 'عام', en: 'General' },
-]
+interface Category {
+  id: string
+  slug: string
+  name_ar: string
+  name_en: string | null
+}
+
+const STATUS_LABELS: Record<string, { ar: string; cls: string }> = {
+  pending: { ar: 'في الانتظار', cls: 'bg-amber-100 text-amber-700' },
+  assigned: { ar: 'لدى المسؤول', cls: 'bg-blue-100 text-blue-700' },
+  in_progress: { ar: 'محادثة جارية', cls: 'bg-blue-100 text-blue-700' },
+  awaiting_consent: { ar: 'بحاجة لموافقتك', cls: 'bg-purple-100 text-purple-700' },
+  published: { ar: 'منشور', cls: 'bg-emerald-100 text-emerald-700' },
+  closed: { ar: 'مغلق', cls: 'bg-slate-100 text-slate-700' },
+  declined: { ar: 'مرفوض', cls: 'bg-red-100 text-red-700' },
+}
 
 export default function StudentFiqhPage() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
+  const ChevronIcon = isAr ? ChevronLeft : ChevronRight
 
-  const [questions, setQuestions] = useState<FiqhQuestion[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'answered'>('all')
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isAskOpen, setIsAskOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [newQuestion, setNewQuestion] = useState('')
-  const [newCategory, setNewCategory] = useState('general')
-  const [creating, setCreating] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchQuestions()
-  }, [])
-
-  const fetchQuestions = async () => {
+  const load = async () => {
     setLoading(true)
-    setLoadError(null)
     try {
-      const res = await fetch('/api/academy/student/fiqh')
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `HTTP ${res.status}`)
+      const [qres, cres] = await Promise.all([
+        fetch('/api/academy/fiqh?view=mine').then((r) => r.json()),
+        fetch('/api/academy/fiqh/categories').then((r) => r.json()),
+      ])
+      if (qres.questions) setQuestions(qres.questions)
+      if (cres.categories) {
+        setCategories(cres.categories)
+        if (!categoryId && cres.categories[0]) setCategoryId(cres.categories[0].id)
       }
-      const data = await res.json()
-      // The API returns the questions array directly
-      setQuestions(Array.isArray(data) ? data : data.questions || [])
-    } catch (err) {
-      console.error('[fiqh] fetch failed:', err)
-      const msg = err instanceof Error ? err.message : 'Failed to load questions'
-      setLoadError(msg)
-      setQuestions([])
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSubmit = async () => {
-    if (!newQuestion.trim()) return
-    setSubmitError(null)
-    setCreating(true)
+  useEffect(() => {
+    load()
+  }, [])
+
+  const submit = async () => {
+    if (!body.trim() || !categoryId) return
+    setSubmitting(true)
+    setFeedback(null)
     try {
-      const res = await fetch('/api/academy/student/fiqh', {
+      const res = await fetch('/api/academy/fiqh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: newQuestion.trim(), category: newCategory }),
+        body: JSON.stringify({
+          title: title.trim() || null,
+          question: body.trim(),
+          category_id: categoryId,
+          is_anonymous: isAnonymous,
+        }),
       })
-      const data = await res.json().catch(() => ({}))
+      const data = await res.json()
       if (!res.ok) {
-        setSubmitError(
-          data?.error || (isAr ? 'تعذّر إرسال السؤال' : 'Failed to submit question'),
-        )
-        return
+        setFeedback({ kind: 'err', text: data.error || 'فشل الإرسال' })
+      } else {
+        setFeedback({
+          kind: 'ok',
+          text: data.assigned
+            ? `تم إرسال سؤالك للمسؤول (${data.officer_name || ''}). ستصلك الإجابة قريباً.`
+            : 'تم استلام سؤالك. سيقوم الإداري بتعيين مسؤول للإجابة عليه.',
+        })
+        setTitle('')
+        setBody('')
+        setIsAnonymous(false)
+        setIsAskOpen(false)
+        await load()
       }
-      setIsCreateOpen(false)
-      setNewQuestion('')
-      setNewCategory('general')
-      fetchQuestions()
-    } catch (err) {
-      console.error('[fiqh] submit failed:', err)
-      setSubmitError(isAr ? 'حدث خطأ غير متوقع' : 'Unexpected error')
     } finally {
-      setCreating(false)
+      setSubmitting(false)
     }
   }
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleString(isAr ? 'ar-EG' : 'en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-
-  const categoryLabel = (id: string) => {
-    const c = CATEGORIES.find((x) => x.id === id)
-    if (!c) return id
-    return isAr ? c.ar : c.en
-  }
-
-  const filtered = questions.filter((q) => {
-    if (filter === 'all') return true
-    if (filter === 'pending') return !q.answer
-    if (filter === 'answered') return !!q.answer
-    return true
-  })
-
-  const pendingCount = questions.filter((q) => !q.answer).length
-  const answeredCount = questions.filter((q) => !!q.answer).length
-
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12" dir={isAr ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <HelpCircle className="w-8 h-8 text-primary" />
+    <div className="max-w-5xl mx-auto p-6 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+            <BookOpen className="w-4 h-4" />
             {isAr ? 'الأسئلة الفقهية' : 'Fiqh Questions'}
-          </h1>
-          <p className="text-muted-foreground font-medium">
+          </div>
+          <h1 className="text-3xl font-black">{isAr ? 'أسئلتي الفقهية' : 'My Fiqh Questions'}</h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl">
             {isAr
-              ? 'اطرح أسئلتك في الفقه وأحكام التجويد، وستجد إجاباتها هنا.'
-              : 'Ask your questions on fiqh and tajweed rulings — answers will appear here.'}
+              ? 'اطرح سؤالك الفقهي وسيقوم مسؤول متخصص بالرد عليك. بعد الإجابة يمكنك السماح بنشر السؤال في المكتبة العامة لينتفع به الآخرون.'
+              : "Submit your question and a specialized officer will respond. After answering, you may consent to publish it in the public library."}
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 shrink-0">
-          <Plus className="w-4 h-4" />
-          {isAr ? 'سؤال جديد' : 'New Question'}
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/academy/fiqh">
+              <Library className="w-4 h-4 me-2" />
+              {isAr ? 'المكتبة العامة' : 'Public library'}
+            </Link>
+          </Button>
+          <Button onClick={() => setIsAskOpen(true)}>
+            <Plus className="w-4 h-4 me-2" />
+            {isAr ? 'إرسال سؤال جديد' : 'Ask a question'}
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <button
-          onClick={() => setFilter('all')}
-          className={cn(
-            'bg-card rounded-xl border p-4 text-center transition-all',
-            filter === 'all'
-              ? 'border-primary ring-2 ring-primary/20'
-              : 'border-border hover:border-primary/50',
-          )}
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl border text-sm ${
+            feedback.kind === 'ok'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700'
+              : 'bg-red-500/10 border-red-500/30 text-red-700'
+          }`}
         >
-          <p className="text-2xl font-bold text-foreground">{questions.length}</p>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {isAr ? 'كل الأسئلة' : 'All'}
-          </p>
-        </button>
-        <button
-          onClick={() => setFilter('pending')}
-          className={cn(
-            'bg-card rounded-xl border p-4 text-center transition-all',
-            filter === 'pending'
-              ? 'border-yellow-500 ring-2 ring-yellow-500/20'
-              : 'border-border hover:border-yellow-500/50',
-          )}
-        >
-          <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {isAr ? 'بانتظار الإجابة' : 'Pending'}
-          </p>
-        </button>
-        <button
-          onClick={() => setFilter('answered')}
-          className={cn(
-            'bg-card rounded-xl border p-4 text-center transition-all',
-            filter === 'answered'
-              ? 'border-green-500 ring-2 ring-green-500/20'
-              : 'border-border hover:border-green-500/50',
-          )}
-        >
-          <p className="text-2xl font-bold text-green-600">{answeredCount}</p>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            {isAr ? 'مُجاب عنها' : 'Answered'}
-          </p>
-        </button>
-      </div>
+          {feedback.text}
+        </div>
+      )}
 
-      {/* Questions List */}
-      <div className="space-y-3">
-        {loadError && (
-          <Card className="border-red-500/50 bg-red-50/50 dark:bg-red-900/20">
-            <CardContent className="flex items-start gap-3 p-4">
-              <HelpCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-bold text-red-700 dark:text-red-400">
-                  {isAr ? 'تعذّر تحميل الأسئلة' : 'Failed to load questions'}
-                </p>
-                <p className="text-sm text-red-600 dark:text-red-300 mt-1">{loadError}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchQuestions}
-                className="flex-shrink-0"
+      {loading ? (
+        <Card>
+          <CardContent className="p-12 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      ) : questions.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center text-muted-foreground space-y-4">
+            <HelpCircle className="w-10 h-10 mx-auto opacity-60" />
+            <p>{isAr ? 'لم تقم بإرسال أي سؤال بعد.' : 'No questions yet.'}</p>
+            <Button onClick={() => setIsAskOpen(true)}>
+              <Plus className="w-4 h-4 me-2" />
+              {isAr ? 'أرسل أول سؤال' : 'Ask your first question'}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {questions.map((q) => {
+            const status = STATUS_LABELS[q.status] || { ar: q.status, cls: 'bg-slate-100 text-slate-700' }
+            return (
+              <Link
+                key={q.id}
+                href={`/academy/student/fiqh/${q.id}`}
+                className="block"
               >
-                {isAr ? 'إعادة محاولة' : 'Retry'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <Card className="border-dashed bg-muted/30">
-            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-              <BookOpen className="w-12 h-12 text-muted-foreground/30 mb-4" />
-              <p className="font-bold text-foreground mb-1">
-                {filter === 'all'
-                  ? isAr
-                    ? 'لم تطرح أي سؤال بعد'
-                    : 'No questions yet'
-                  : filter === 'pending'
-                    ? isAr
-                      ? 'لا توجد أسئلة بانتظار الإجابة'
-                      : 'No pending questions'
-                    : isAr
-                      ? 'لا توجد أسئلة مُجاب عنها'
-                      : 'No answered questions'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {isAr
-                  ? 'ابدأ بطرح سؤالك الأول لتتلقى إجابة من المختصين.'
-                  : 'Start by asking your first question to receive an answer.'}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filtered.map((q) => (
-            <Card
-              key={q.id}
-              className={cn(
-                'transition-all border-border',
-                q.answer
-                  ? 'shadow-sm'
-                  : 'border-yellow-500/30 bg-yellow-50/40 dark:bg-yellow-900/10',
-              )}
-            >
-              <CardContent className="p-4 sm:p-5 space-y-3">
-                {/* Header row */}
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md font-bold">
-                      {categoryLabel(q.category)}
-                    </span>
-                    {q.answer ? (
-                      <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-md font-bold">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {isAr ? 'مُجاب' : 'Answered'}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 px-2 py-0.5 rounded-md font-bold">
-                        <Clock className="w-3 h-3" />
-                        {isAr ? 'بانتظار الإجابة' : 'Pending'}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(q.created_at)}
-                  </span>
-                </div>
+                <Card className="rounded-2xl hover:bg-muted/30 transition-colors">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {q.category_name_ar && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                              {q.category_name_ar}
+                            </span>
+                          )}
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${status.cls}`}>
+                            {status.ar}
+                          </span>
+                          {q.is_anonymous && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                              {isAr ? 'مجهول' : 'Anonymous'}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-lg">
+                          {q.title || q.question.slice(0, 80) + (q.question.length > 80 ? '…' : '')}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{q.question}</p>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {new Date(q.asked_at).toLocaleDateString(isAr ? 'ar-SA' : 'en-US')}
+                          {q.officer_name && (
+                            <span>• {isAr ? `المسؤول: ${q.officer_name}` : `Officer: ${q.officer_name}`}</span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronIcon className="w-5 h-5 text-muted-foreground shrink-0 mt-1" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
 
-                {/* Question */}
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1 font-bold">
-                    {isAr ? 'السؤال:' : 'Question:'}
-                  </p>
-                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                    {q.question}
-                  </p>
-                </div>
-
-                {/* Answer */}
-                {q.answer && (
-                  <div className="border-t border-border pt-3 mt-2">
-                    <p className="text-sm text-muted-foreground mb-1 font-bold flex items-center gap-1 flex-wrap">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      {isAr ? 'الإجابة:' : 'Answer:'}
-                      {q.answered_by_name && (
-                        <span className="text-xs font-medium text-foreground/70">
-                          ({q.answered_by_name})
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">
-                      {q.answer}
-                    </p>
-                    {q.answered_at && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {formatDate(q.answered_at)}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[600px] border-border bg-card">
+      <Dialog open={isAskOpen} onOpenChange={setIsAskOpen}>
+        <DialogContent className="max-w-lg" dir={isAr ? 'rtl' : 'ltr'}>
           <DialogHeader>
-            <DialogTitle>
-              {isAr ? 'طرح سؤال فقهي' : 'Ask a Fiqh Question'}
-            </DialogTitle>
+            <DialogTitle>{isAr ? 'إرسال سؤال فقهي جديد' : 'Ask a fiqh question'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2" dir={isAr ? 'rtl' : 'ltr'}>
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">
-                {isAr ? 'التصنيف' : 'Category'}
-              </label>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-bold block mb-1">{isAr ? 'التصنيف' : 'Category'}</label>
               <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full border-border bg-card p-2 rounded-md border focus:outline-none focus:ring-1 focus:ring-primary"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl border bg-card"
               >
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {isAr ? c.ar : c.en}
+                    {c.name_ar}
                   </option>
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">
-                {isAr ? 'سؤالك' : 'Your Question'}
-              </label>
-              <Textarea
-                value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
-                rows={6}
-                placeholder={
-                  isAr
-                    ? 'اكتب سؤالك بوضوح وذكر السياق إن لزم...'
-                    : 'Write your question clearly and add context if needed...'
-                }
-                className="resize-none"
+            <div>
+              <label className="text-sm font-bold block mb-1">{isAr ? 'العنوان (اختياري)' : 'Title (optional)'}</label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={isAr ? 'مثال: حكم قصر الصلاة في السفر' : 'e.g., Shortening prayer while traveling'}
               />
             </div>
-            {submitError && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-md">
-                {submitError}
-              </p>
-            )}
+            <div>
+              <label className="text-sm font-bold block mb-1">{isAr ? 'نص السؤال' : 'Question'}</label>
+              <Textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={isAr ? 'اكتب سؤالك بوضوح...' : 'Write your question clearly...'}
+                rows={6}
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={isAnonymous} onCheckedChange={(v) => setIsAnonymous(!!v)} />
+              <span className="text-sm">
+                {isAr ? 'إخفاء اسمي عن المسؤول والمكتبة العامة' : 'Hide my name from the officer and public library'}
+              </span>
+            </label>
           </div>
-          <DialogFooter className="flex-row-reverse sm:justify-start gap-2">
-            <Button
-              onClick={handleSubmit}
-              disabled={!newQuestion.trim() || creating}
-            >
-              {creating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isAr ? (
-                'إرسال السؤال'
-              ) : (
-                'Submit Question'
-              )}
-            </Button>
-            <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAskOpen(false)}>
               {isAr ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button onClick={submit} disabled={submitting || !body.trim() || !categoryId}>
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <>
+                  <Send className="w-4 h-4 me-2" />
+                  {isAr ? 'إرسال' : 'Send'}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

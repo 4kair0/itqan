@@ -1,228 +1,220 @@
 import { query, queryOne } from '@/lib/db'
-import { PointsAction, MemorizationQuality } from '@/lib/types'
+import { PointsAction } from '@/lib/types'
+import { checkAndAwardBadges as checkBadgesFromDefinitions } from '@/lib/academy/badges'
 
-export interface PointsConfig {
-  task_complete: number
-  memorization_excellent: number
-  memorization_good: number
-  memorization_acceptable: number
-  attendance: number
-  competition_win: number
-  competition_second: number
-  competition_third: number
-  streak_bonus_3days: number
-  streak_bonus_7days: number
-  streak_bonus_30days: number
-  forum_answer: number
-  badge_earned: number
+// ── Point Values (as per requirements) ──────────────────────────
+export const POINTS = {
+  recitation: 10,        // تسجيل تلاوة
+  mastered: 30,          // إتقان تلاوة
+  task: 15,              // إنهاء مهمة
+  session_attend: 20,    // حضور درس
+  streak: 5,             // يوم Streak
+  juz_complete: 100,     // إنهاء جزء كامل
+  course_complete: 50,
+  lesson: 10,
+  daily_login: 2,
+  competition_win: 200,
+  badge_earned: 25,
+} as const
+
+// ── Level Thresholds ────────────────────────────────────────────
+export const LEVELS = [
+  { key: 'beginner',     min: 0,    label: 'مبتدئ' },
+  { key: 'intermediate', min: 500,  label: 'متوسط' },
+  { key: 'advanced',     min: 2000, label: 'متقدم' },
+  { key: 'hafiz',        min: 5000, label: 'حافظ' },
+] as const
+
+export type LevelKey = typeof LEVELS[number]['key']
+
+export function levelForPoints(totalPoints: number): LevelKey {
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (totalPoints >= LEVELS[i].min) return LEVELS[i].key
+  }
+  return 'beginner'
 }
 
-const pointsConfig: PointsConfig = {
-  task_complete: 50,
-  memorization_excellent: 100,
-  memorization_good: 75,
-  memorization_acceptable: 50,
-  attendance: 20,
-  competition_win: 500,
-  competition_second: 300,
-  competition_third: 150,
-  streak_bonus_3days: 100,
-  streak_bonus_7days: 200,
-  streak_bonus_30days: 500,
-  forum_answer: 25,
-  badge_earned: 100
+// ── Streak Multiplier ───────────────────────────────────────────
+const STREAK_MULTIPLIER_THRESHOLD = 7
+const STREAK_MULTIPLIER = 1.5
+
+export async function getStreakMultiplier(userId: string): Promise<number> {
+  const row = await queryOne<{ streak_days: number }>(
+    `SELECT streak_days FROM user_points WHERE user_id = $1`,
+    [userId],
+  )
+  return (row?.streak_days ?? 0) >= STREAK_MULTIPLIER_THRESHOLD ? STREAK_MULTIPLIER : 1
 }
 
+// ── Core: Award Points ──────────────────────────────────────────
 export async function awardPoints(
   userId: string,
-  points: number,
-  action: PointsAction,
-  metadata?: Record<string, any>
-): Promise<void> {
-  try {
-    // Get existing user points
-    const existing = await queryOne<{ user_id: string; points: number }>(
-      `SELECT * FROM user_points WHERE user_id = $1`,
-      [userId]
-    )
+  basePoints: number,
+  reason: PointsAction,
+  description?: string,
+  relatedEntityType?: string,
+  relatedEntityId?: string,
+): Promise<{ awarded: number; newTotal: number; level: LevelKey }> {
+  // Apply streak multiplier for non-streak actions
+  const multiplier = reason !== 'streak' ? await getStreakMultiplier(userId) : 1
+  const awarded = Math.round(basePoints * multiplier)
 
-    const newTotal = (existing?.points || 0) + points
+  // Upsert user_points
+  const row = await queryOne<{ total_points: number }>(
+    `INSERT INTO user_points (user_id, total_points, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (user_id) DO UPDATE
+       SET total_points = user_points.total_points + $2,
+           updated_at = NOW()
+     RETURNING total_points`,
+    [userId, awarded],
+  )
 
-    if (existing) {
-      await query(
-        `UPDATE user_points SET points = $1, updated_at = NOW() WHERE user_id = $2`,
-        [newTotal, userId]
-      )
-    } else {
-      await query(
-        `INSERT INTO user_points (user_id, points, created_at) VALUES ($1, $2, NOW())`,
-        [userId, points]
-      )
-    }
+  const newTotal = row?.total_points ?? awarded
+  const level = levelForPoints(newTotal)
 
-    // Log the points transaction
+  // Update level
+  await query(
+    `UPDATE user_points SET level = $1 WHERE user_id = $2 AND level IS DISTINCT FROM $1`,
+    [level, userId],
+  )
+
+  // Log the transaction
+  await query(
+    `INSERT INTO points_log (user_id, points, reason, description, related_entity_type, related_entity_id)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [userId, awarded, reason, description || null, relatedEntityType || null, relatedEntityId || null],
+  )
+
+  // Check & award badges
+  await checkAndAwardBadges(userId, newTotal)
+
+  return { awarded, newTotal, level }
+}
+
+// ── Streak Management ───────────────────────────────────────────
+export async function updateStreak(userId: string): Promise<{ streak: number; bonusAwarded: boolean }> {
+  const row = await queryOne<{
+    streak_days: number
+    longest_streak: number
+    last_activity_date: string | null
+  }>(
+    `SELECT streak_days, longest_streak, last_activity_date FROM user_points WHERE user_id = $1`,
+    [userId],
+  )
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+
+  if (!row) {
     await query(
-      `INSERT INTO points_log (user_id, points, action, metadata, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [userId, points, action, JSON.stringify(metadata || {})]
+      `INSERT INTO user_points (user_id, streak_days, longest_streak, last_activity_date, updated_at)
+       VALUES ($1, 1, 1, $2, NOW())
+       ON CONFLICT (user_id) DO UPDATE
+         SET streak_days = 1, longest_streak = GREATEST(user_points.longest_streak, 1),
+             last_activity_date = $2, updated_at = NOW()`,
+      [userId, todayStr],
     )
-
-    // Check and award badges
-    await checkAndAwardBadges(userId, newTotal)
-  } catch (error) {
-    console.error('Error awarding points:', error)
-    throw error
-  }
-}
-
-export async function awardMemorizationPoints(
-  userId: string,
-  quality: MemorizationQuality,
-  metadata?: Record<string, any>
-): Promise<void> {
-  const pointsMap = {
-    excellent: pointsConfig.memorization_excellent,
-    good: pointsConfig.memorization_good,
-    acceptable: pointsConfig.memorization_acceptable,
-    needs_review: 0
+    await awardPoints(userId, POINTS.streak, 'streak', 'مكافأة يوم Streak')
+    return { streak: 1, bonusAwarded: true }
   }
 
-  await awardPoints(userId, pointsMap[quality], 'memorization', metadata)
-}
+  const lastDate = row.last_activity_date ? new Date(row.last_activity_date) : null
+  if (lastDate) lastDate.setHours(0, 0, 0, 0)
 
-export async function awardTaskCompletePoints(
-  userId: string,
-  taskId: string
-): Promise<void> {
-  await awardPoints(
-    userId,
-    pointsConfig.task_complete,
-    'task_complete',
-    { task_id: taskId }
-  )
-}
-
-export async function awardAttendancePoints(
-  userId: string,
-  sessionId: string
-): Promise<void> {
-  await awardPoints(
-    userId,
-    pointsConfig.attendance,
-    'attendance',
-    { session_id: sessionId }
-  )
-}
-
-export async function awardCompetitionPoints(
-  userId: string,
-  position: 1 | 2 | 3,
-  competitionId: string
-): Promise<void> {
-  const pointsMap = {
-    1: pointsConfig.competition_win,
-    2: pointsConfig.competition_second,
-    3: pointsConfig.competition_third
+  if (lastDate && lastDate.getTime() === today.getTime()) {
+    return { streak: row.streak_days, bonusAwarded: false }
   }
 
-  await awardPoints(
-    userId,
-    pointsMap[position],
-    'competition_win',
-    { competition_id: competitionId, position }
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  let newStreak: number
+  if (lastDate && lastDate.getTime() === yesterday.getTime()) {
+    newStreak = row.streak_days + 1
+  } else {
+    newStreak = 1
+  }
+
+  const newLongest = Math.max(newStreak, row.longest_streak)
+
+  await query(
+    `UPDATE user_points
+     SET streak_days = $1, longest_streak = $2, last_activity_date = $3, updated_at = NOW()
+     WHERE user_id = $4`,
+    [newStreak, newLongest, todayStr, userId],
   )
+
+  await awardPoints(userId, POINTS.streak, 'streak', `مكافأة يوم Streak (${newStreak} يوم)`)
+  return { streak: newStreak, bonusAwarded: true }
 }
 
-export async function checkAndAwardBadges(userId: string, totalPoints: number): Promise<void> {
+// ── Convenience Wrappers ────────────────────────────────────────
+
+export async function awardRecitationPoints(userId: string, recitationId: string) {
+  await updateStreak(userId)
+  return awardPoints(userId, POINTS.recitation, 'recitation', 'تسجيل تلاوة', 'recitation', recitationId)
+}
+
+export async function awardMasteryPoints(userId: string, recitationId: string) {
+  return awardPoints(userId, POINTS.mastered, 'mastered', 'إتقان تلاوة', 'recitation', recitationId)
+}
+
+export async function awardTaskPoints(userId: string, taskId: string) {
+  await updateStreak(userId)
+  return awardPoints(userId, POINTS.task, 'task', 'إنهاء مهمة', 'task', taskId)
+}
+
+export async function awardAttendancePoints(userId: string, sessionId: string) {
+  await updateStreak(userId)
+  return awardPoints(userId, POINTS.session_attend, 'session_attend', 'حضور درس', 'session', sessionId)
+}
+
+export async function awardJuzCompletePoints(userId: string, juzNumber: number) {
+  return awardPoints(userId, POINTS.juz_complete, 'juz_complete', `إنهاء الجزء ${juzNumber}`)
+}
+
+export async function awardCourseCompletePoints(userId: string, courseId: string) {
+  return awardPoints(userId, POINTS.course_complete, 'course_complete', 'إنهاء دورة', 'course', courseId)
+}
+
+// ── Badge System ────────────────────────────────────────────────
+async function checkAndAwardBadges(userId: string, _totalPoints: number): Promise<void> {
   try {
-    const badges = [
-      { id: 'first_steps', threshold: 100, name: 'الخطوات الأولى', description: 'اجمع 100 نقطة' },
-      { id: 'rising_star', threshold: 500, name: 'نجم صاعد', description: 'اجمع 500 نقطة' },
-      { id: 'champion', threshold: 2000, name: 'بطل', description: 'اجمع 2000 نقطة' },
-      { id: 'legend', threshold: 5000, name: 'أسطورة', description: 'اجمع 5000 نقطة' },
-      { id: 'master', threshold: 10000, name: 'ماهر', description: 'اجمع 10000 نقطة' }
-    ]
-
-    // Check which badges the user should have
-    const eligibleBadges = badges.filter(b => totalPoints >= b.threshold)
-
-    // Get existing badges
-    const existingBadges = await query<{ badge_id: string }>(
-      `SELECT badge_id FROM badges WHERE user_id = $1`,
-      [userId]
-    )
-
-    const existingIds = new Set(existingBadges.map(b => b.badge_id))
-
-    // Award new badges
-    for (const badge of eligibleBadges) {
-      if (!existingIds.has(badge.id)) {
-        try {
-          await query(
-            `INSERT INTO badges (user_id, badge_id, badge_name, badge_description, earned_at)
-             VALUES ($1, $2, $3, $4, NOW())`,
-            [userId, badge.id, badge.name, badge.description]
-          )
-
-          // Award badge earned points
-          await awardPoints(userId, pointsConfig.badge_earned, 'badge_earned', { badge_id: badge.id })
-        } catch (e) {
-          // Ignore if already exists
-          console.debug('Badge already exists:', badge.id)
-        }
-      }
-    }
+    await checkBadgesFromDefinitions(userId)
   } catch (error) {
-    console.error('Error checking and awarding badges:', error)
+    console.error('Error checking badges:', error)
   }
 }
 
-export async function getStreakBonus(userId: string): Promise<number> {
-  try {
-    // Get memorization logs from the last 30 days
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+// ── Admin: Manual Adjust ────────────────────────────────────────
+export async function adminAdjustPoints(
+  userId: string,
+  points: number,
+  description: string,
+  adminId: string,
+): Promise<{ newTotal: number; level: LevelKey }> {
+  const row = await queryOne<{ total_points: number }>(
+    `INSERT INTO user_points (user_id, total_points, updated_at)
+     VALUES ($1, GREATEST($2, 0), NOW())
+     ON CONFLICT (user_id) DO UPDATE
+       SET total_points = GREATEST(user_points.total_points + $2, 0),
+           updated_at = NOW()
+     RETURNING total_points`,
+    [userId, points],
+  )
 
-    const logs = await query<{ created_at: string }>(
-      `SELECT created_at FROM memorization_log
-       WHERE user_id = $1 AND created_at >= $2
-       ORDER BY created_at DESC`,
-      [userId, thirtyDaysAgo.toISOString()]
-    )
+  const newTotal = row?.total_points ?? 0
+  const level = levelForPoints(newTotal)
 
-    if (!logs || logs.length === 0) return 0
+  await query(`UPDATE user_points SET level = $1 WHERE user_id = $2`, [level, userId])
 
-    // Count consecutive days
-    let streak = 0
-    let currentDate = new Date()
-    currentDate.setHours(0, 0, 0, 0)
+  await query(
+    `INSERT INTO points_log (user_id, points, reason, description, related_entity_type, related_entity_id)
+     VALUES ($1, $2, 'admin_adjust', $3, 'admin', $4)`,
+    [userId, points, description, adminId],
+  )
 
-    const logDates = new Set(
-      logs.map(log => {
-        const d = new Date(log.created_at)
-        d.setHours(0, 0, 0, 0)
-        return d.getTime()
-      })
-    )
-
-    // Count backwards from today
-    while (logDates.has(currentDate.getTime())) {
-      streak++
-      currentDate.setDate(currentDate.getDate() - 1)
-    }
-
-    // Award streak bonuses
-    if (streak === 30) {
-      return pointsConfig.streak_bonus_30days
-    } else if (streak === 7) {
-      return pointsConfig.streak_bonus_7days
-    } else if (streak === 3) {
-      return pointsConfig.streak_bonus_3days
-    }
-
-    return 0
-  } catch (error) {
-    console.error('Error calculating streak bonus:', error)
-    return 0
-  }
+  return { newTotal, level }
 }
