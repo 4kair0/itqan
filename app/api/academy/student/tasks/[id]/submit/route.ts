@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { awardTaskPoints } from '@/lib/academy/points'
 
 export async function POST(
   req: NextRequest,
@@ -37,6 +38,14 @@ export async function POST(
         VALUES ($1, $2, $3, $4, 'submitted', NOW()) RETURNING *
       `
       const res = await query(q, [taskId, session.sub, content, file_url])
+
+      // Award task completion points (+15)
+      try {
+        await awardTaskPoints(session.sub, taskId)
+      } catch (e) {
+        console.error('Failed to award task points:', e)
+      }
+
       return NextResponse.json({ success: true, data: res[0] }, { status: 201 })
     }
 

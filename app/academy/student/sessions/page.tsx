@@ -20,9 +20,12 @@ interface Session {
   scheduled_at: string
   duration_minutes: number
   meeting_link?: string
-  status: 'scheduled' | 'live' | 'completed' | 'cancelled'
+  meeting_provider?: 'zoom' | 'google_meet' | 'other'
+  meeting_password?: string
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled' | 'in_progress'
   recording_url?: string
   attendees_count?: number
+  is_personal_link?: boolean
 }
 
 export default function StudentSessionsPage() {
@@ -55,7 +58,7 @@ export default function StudentSessionsPage() {
     const sessionEnd = new Date(sessionDate.getTime() + session.duration_minutes * 60000)
 
     if (filter === 'live') {
-      return session.status === 'live' || (sessionDate <= now && sessionEnd >= now)
+      return session.status === 'live' || session.status === 'in_progress' || (sessionDate <= now && sessionEnd >= now)
     }
     if (filter === 'upcoming') {
       return session.status === 'scheduled' && sessionDate > now
@@ -66,22 +69,26 @@ export default function StudentSessionsPage() {
     return true
   })
 
-  const statusConfig = {
-    scheduled: { 
-      label: t.academy?.scheduled || 'مجدولة', 
-      color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' 
+  const statusConfig: Record<Session['status'], { label: string; color: string }> = {
+    scheduled: {
+      label: t.academy?.scheduled || 'مجدولة',
+      color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     },
-    live: { 
-      label: t.academy?.live || 'مباشر الآن', 
-      color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+    live: {
+      label: t.academy?.live || 'مباشر الآن',
+      color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     },
-    completed: { 
-      label: t.academy?.completed || 'منتهية', 
-      color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+    in_progress: {
+      label: t.academy?.live || 'مباشر الآن',
+      color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     },
-    cancelled: { 
-      label: t.academy?.cancelled || 'ملغاة', 
-      color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' 
+    completed: {
+      label: t.academy?.completed || 'منتهية',
+      color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+    },
+    cancelled: {
+      label: t.academy?.cancelled || 'ملغاة',
+      color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
     }
   }
 
@@ -119,7 +126,13 @@ export default function StudentSessionsPage() {
   const isLive = (session: Session) => {
     const sessionDate = new Date(session.scheduled_at)
     const sessionEnd = new Date(sessionDate.getTime() + session.duration_minutes * 60000)
-    return session.status === 'live' || (sessionDate <= now && sessionEnd >= now)
+    return session.status === 'live' || session.status === 'in_progress' || (sessionDate <= now && sessionEnd >= now)
+  }
+
+  const providerLabel = (p?: Session['meeting_provider']) => {
+    if (p === 'zoom') return 'Zoom'
+    if (p === 'google_meet') return 'Google Meet'
+    return null
   }
 
   if (loading) {
@@ -302,19 +315,44 @@ export default function StudentSessionsPage() {
                   </div>
 
                   {/* Action */}
-                  <div className="shrink-0">
-                    {sessionIsLive && session.meeting_link && (
-                      <a
-                        href={session.meeting_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors animate-pulse"
-                      >
-                        <PlayCircle className="w-5 h-5" />
-                        {t.academy?.joinNow || 'انضم الآن'}
-                      </a>
-                    )}
-                    {session.status === 'completed' && session.recording_url && (
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    {session.meeting_link ? (
+                      <>
+                        <a
+                          href={session.meeting_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(
+                            "inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
+                            sessionIsLive
+                              ? "bg-red-600 text-white hover:bg-red-700 animate-pulse"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          )}
+                        >
+                          {sessionIsLive ? <PlayCircle className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                          {sessionIsLive
+                            ? (t.academy?.joinNow || 'انضم الآن')
+                            : (providerLabel(session.meeting_provider) ? `فتح ${providerLabel(session.meeting_provider)}` : 'فتح الرابط')}
+                        </a>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          {providerLabel(session.meeting_provider) && (
+                            <span className="px-1.5 py-0.5 bg-muted rounded">
+                              {providerLabel(session.meeting_provider)}
+                            </span>
+                          )}
+                          {session.is_personal_link && (
+                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded">
+                              رابط خاص بك
+                            </span>
+                          )}
+                        </div>
+                        {session.meeting_password && (
+                          <div className="text-xs text-muted-foreground" dir="ltr">
+                            كلمة المرور: <span className="font-mono">{session.meeting_password}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : session.status === 'completed' && session.recording_url ? (
                       <a
                         href={session.recording_url}
                         target="_blank"
@@ -324,14 +362,13 @@ export default function StudentSessionsPage() {
                         <PlayCircle className="w-5 h-5" />
                         {t.academy?.watchRecording || 'شاهد التسجيل'}
                       </a>
-                    )}
-                    {session.status === 'scheduled' && !sessionIsLive && (
+                    ) : (
                       <button
                         disabled
                         className="inline-flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground rounded-lg cursor-not-allowed"
                       >
                         <Clock className="w-5 h-5" />
-                        {t.academy?.notStarted || 'لم تبدأ بعد'}
+                        لم يُرسل الرابط بعد
                       </button>
                     )}
                   </div>

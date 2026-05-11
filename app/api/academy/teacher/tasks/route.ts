@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
         (SELECT COUNT(*)::int FROM enrollments e WHERE e.course_id = t.course_id AND e.status = 'active') as total_students
       FROM tasks t
       LEFT JOIN courses c ON t.course_id = c.id
-      WHERE t.teacher_id = $1
+      WHERE (t.teacher_id = $1 OR t.assigned_by = $1)
       ORDER BY t.due_date DESC
     `, [session.sub])
 

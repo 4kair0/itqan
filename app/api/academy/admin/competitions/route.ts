@@ -9,7 +9,10 @@ export async function GET(req: NextRequest) {
   }
   try {
     const rows = await query(`
-      SELECT * FROM competitions ORDER BY created_at DESC
+      SELECT c.*,
+        (SELECT COUNT(*)::int FROM competition_entries ce WHERE ce.competition_id = c.id) as participants_count
+      FROM competitions c
+      ORDER BY c.created_at DESC
     `)
     return NextResponse.json({ data: rows })
   } catch (error) {
@@ -24,7 +27,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   try {
-    const { title, description, type, start_date, end_date, max_participants, prizes_description } = await req.json()
+    const body = await req.json()
+    const { title, description, type, start_date, end_date, max_participants, prizes_description, rules, tajweed_rules, is_featured, points_multiplier } = body
     if (!title || !start_date || !end_date) {
       return NextResponse.json({ error: 'Title, start_date and end_date required' }, { status: 400 })
     }
@@ -33,10 +37,24 @@ export async function POST(req: NextRequest) {
     const status = start > now ? 'upcoming' : 'active'
     
     const result = await query(`
-      INSERT INTO competitions (title, description, type, start_date, end_date, max_participants, prizes_description, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      INSERT INTO competitions (title, description, type, start_date, end_date, max_participants, prizes_description, rules, tajweed_rules, is_featured, points_multiplier, status, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
       RETURNING *
-    `, [title, description || null, type || 'monthly', start_date, end_date, max_participants || 100, prizes_description || null, status])
+    `, [
+      title,
+      description || null,
+      type || 'monthly',
+      start_date,
+      end_date,
+      max_participants || 100,
+      prizes_description || null,
+      rules || null,
+      tajweed_rules && tajweed_rules.length > 0 ? tajweed_rules : null,
+      is_featured || false,
+      points_multiplier || 1,
+      status,
+      session.sub,
+    ])
     
     return NextResponse.json({ data: result[0] }, { status: 201 })
   } catch (error) {

@@ -16,6 +16,8 @@ interface LinkedChild {
   relation: string
   status: string
   linked_at: string
+  confirmed_at: string | null
+  requested_at: string
 }
 
 export default function ParentChildrenPage() {
@@ -116,27 +118,39 @@ export default function ParentChildrenPage() {
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
                       <span className="text-xs font-bold uppercase">{isAr ? "الحالة" : "Status"}</span>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
-                    </div>
+                    {child.status === 'active' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{isAr ? "مربوط ✓" : "Linked ✓"}</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{isAr ? "بانتظار موافقة الطالب" : "Awaiting student approval"}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="w-px h-12 bg-border/50" />
                   
                   <div className="text-center space-y-1">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground mb-2">
-                      <span className="text-xs font-bold uppercase">{isAr ? "تاريخ الربط" : "Linked On"}</span>
+                      <span className="text-xs font-bold uppercase">{isAr ? "تاريخ الطلب" : "Requested On"}</span>
                     </div>
                     <p className="text-sm font-bold text-foreground" dir="ltr">{new Date(child.linked_at).toLocaleDateString('ar-EG')}</p>
                   </div>
                 </div>
 
                 <div className="p-6 bg-muted/20 border-t border-border/50 flex items-center gap-4">
-                  <Button variant="default" asChild className="flex-1 bg-card border border-border text-foreground hover:bg-muted font-bold rounded-xl h-12 shadow-sm">
-                    <Link href={`/academy/parent/reports?child=${child.child_id}`}>
-                      {isAr ? "عرض التقارير الكاملة" : "View Full Reports"}
-                    </Link>
-                  </Button>
+                  {child.status === 'active' ? (
+                    <Button variant="default" asChild className="flex-1 bg-primary text-primary-foreground font-bold rounded-xl h-12 shadow-sm">
+                      <Link href={`/academy/parent/children/${child.child_id}`}>
+                        {isAr ? "عرض صفحة الابن" : "Open child page"}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <div className="flex-1 text-sm text-muted-foreground text-center">
+                      {isAr ? "سيظهر رابط الصفحة بعد موافقة الطالب" : "Link will appear after student confirms"}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

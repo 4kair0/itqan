@@ -26,7 +26,21 @@ export default function RegisterPage() {
         if (res.ok) {
           const data = await res.json()
           if (data.user) {
-            router.push(`/${data.user.role}`)
+            // #2: Honor platform access flags when redirecting an already-logged-in user.
+            const u = data.user
+            const role = u.role
+            if (role === 'admin') router.push('/admin')
+            else if (role === 'academy_admin') router.push('/academy/admin')
+            else if (role === 'reader') router.push('/reader')
+            else if (role === 'teacher') router.push('/academy/teacher')
+            else if (role === 'parent') router.push('/academy/parent')
+            else {
+              const hasAcademy = u.has_academy_access !== false
+              const hasQuran = u.has_quran_access !== false
+              if (hasAcademy && !hasQuran) router.push('/academy/student')
+              else if (!hasAcademy && hasQuran) router.push('/student')
+              else router.push('/academy/student')
+            }
           }
         }
       } catch (err) {
@@ -76,9 +90,27 @@ export default function RegisterPage() {
       }
 
       if (data.requiresVerification) {
-        router.push(`/verify?email=${encodeURIComponent(email)}`)
+        // A-2: Pass the chosen platform through the verify step so the
+        // post-verification redirect lands on the correct dashboard.
+        const effectivePlatform = role === 'parent' ? 'academy' : platform
+        router.push(
+          `/verify?email=${encodeURIComponent(email)}&platform=${effectivePlatform}&role=${role}`
+        )
       } else {
-        router.push('/student')
+        // #2: Honor the chosen platform.
+        // - parent → /academy/parent
+        // - academy → /academy/student
+        // - quran → /student
+        // - both → land on /academy/student (primary); user can switch via ModeSwitcher
+        const savedRole = data.user?.role || role
+        if (savedRole === 'parent') {
+          router.push('/academy/parent')
+        } else if (platform === 'quran') {
+          router.push('/student')
+        } else {
+          // platform === 'academy' or 'both'
+          router.push('/academy/student')
+        }
       }
     } catch {
       setError(t.auth.connectionError)
@@ -167,17 +199,17 @@ export default function RegisterPage() {
             </div>
 
             {role !== 'parent' && (
-            <div>
-              <label htmlFor="platform" className="block text-sm font-medium text-foreground/80 mb-1">المنصة المراد التسجيل بها</label>
-              <div className="relative">
-                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-                <select id="platform" value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-full pr-4 pl-10 py-3 bg-secondary/20 dark:bg-secondary/10 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm text-foreground appearance-none" required>
-                  <option value="both" className="bg-card">الاثنان معاً (المقرأة والأكاديمية)</option>
-                  <option value="quran" className="bg-card">المقرأة (تسميع القرآن فقط)</option>
-                  <option value="academy" className="bg-card">الأكاديمية (الدورات التعليمية فقط)</option>
-                </select>
+              <div>
+                <label htmlFor="platform" className="block text-sm font-medium text-foreground/80 mb-1">المنصة المراد التسجيل بها</label>
+                <div className="relative">
+                  <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+                  <select id="platform" value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-full pr-4 pl-10 py-3 bg-secondary/20 dark:bg-secondary/10 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm text-foreground appearance-none" required>
+                    <option value="both" className="bg-card">الاثنان معاً (المقرأة والأكاديمية)</option>
+                    <option value="quran" className="bg-card">المقرأة (تسميع القرآن فقط)</option>
+                    <option value="academy" className="bg-card">الأكاديمية (الدورات التعليمية فقط)</option>
+                  </select>
+                </div>
               </div>
-            </div>
             )}
 
             <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60">
@@ -195,23 +227,34 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* Link to Reader Registration */}
-          <div className="mt-6 text-center border-t border-gray-100 pt-6">
-            <p className="text-sm text-gray-600 mb-2">
-              {t.locale === 'ar' ? 'هل أنت مقرئ وترغب بالانضمام إلينا؟' : 'Are you a reciter and want to join us?'}
-            </p>
-            <Link href="/reader-register" className="inline-flex items-center justify-center text-sm font-bold text-[#0B3D2E] hover:text-[#0B3D2E]/80 transition-colors">
-              {t.locale === 'ar' ? 'سجل كمقرئ من هنا' : 'Register as a Reciter here'}
-            </Link>
+          {/* Link to Reader/Teacher Registration */}
+          <div className="mt-6 text-center border-t border-gray-100 pt-6 space-y-6">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">
+                {t.locale === 'ar' ? 'هل أنت مقرئ وترغب بالانضمام إلينا؟' : 'Are you a reciter and want to join us?'}
+              </p>
+              <Link href="/reader-register" className="inline-flex items-center justify-center text-sm font-bold text-[#0B3D2E] hover:text-[#0B3D2E]/80 transition-colors">
+                {t.locale === 'ar' ? 'سجل كمقرئ من هنا' : 'Register as a Reciter here'}
+              </Link>
+            </div>
+
+            <div className="pt-2 border-t border-gray-50">
+              <p className="text-sm text-gray-600 mb-2">
+                {t.locale === 'ar' ? 'هل أنت معلم وترغب بالانضمام إلينا؟' : 'Are you a teacher and want to join us?'}
+              </p>
+              <Link href="/teacher-register" className="inline-flex items-center justify-center text-sm font-bold text-[#D4A843] hover:text-[#D4A843]/80 transition-colors">
+                {t.locale === 'ar' ? 'سجل كمعلم من هنا' : 'Register as a Teacher here'}
+              </Link>
+            </div>
           </div>
         </div>
       </main>
 
       <footer className="absolute bottom-4 text-center w-full z-10 flex flex-col items-center gap-2">
-          <img src="/branding/main-logo.png" alt="Itqan" className="h-10 w-auto opacity-30 grayscale brightness-200" />
-          <p className="text-xs text-white/20">
-              {'2026 '}{t.appName}{'. '}{t.footer.rights}
-          </p>
+        <img src="/branding/main-logo.png" alt="Itqan" className="h-10 w-auto opacity-30 grayscale brightness-200" />
+        <p className="text-xs text-white/20">
+          {'2026 '}{t.appName}{'. '}{t.footer.rights}
+        </p>
       </footer>
     </div>
   )

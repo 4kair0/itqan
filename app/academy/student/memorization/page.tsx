@@ -246,14 +246,18 @@ function AddMemorizationModal({
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/academy/student/memorization/log', {
+      const qualityRating = quality === 'excellent' ? 5 : quality === 'good' ? 4 : quality === 'acceptable' ? 3 : 2
+      const newVerses = Math.abs(parseInt(ayahTo) - parseInt(ayahFrom)) + 1
+      const surah = SURAHS.find(s => s.number === parseInt(surahNumber))
+      const res = await fetch('/api/academy/student/memorization', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           surah_number: parseInt(surahNumber),
-          ayah_from: parseInt(ayahFrom),
-          ayah_to: parseInt(ayahTo),
-          quality
+          surah_name: surah?.name || null,
+          new_verses: newVerses,
+          revised_verses: 0,
+          quality_rating: qualityRating,
         })
       })
 

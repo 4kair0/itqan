@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { createNotification } from '@/lib/notifications'
 
 export async function GET(
   req: NextRequest,
@@ -20,6 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized course' }, { status: 403 })
     }
 
+    // B-7: المشرفون وأدمن يشوفوا كل الدروس، المدرس يشوفهم كلهم، الطلاب يشوفوا published فقط
     const lessonsResult = await query(`SELECT * FROM lessons WHERE course_id = $1 ORDER BY order_index ASC`, [courseId])
 
     return NextResponse.json({ lessons: lessonsResult })
@@ -42,13 +44,14 @@ export async function POST(
     const courseId = (await params).id;
 
     // Check if teacher owns course
-    const ownCheck = await query(`SELECT id FROM courses WHERE id = $1 AND teacher_id = $2`, [courseId, session.sub])
+    const ownCheck = await query<any>(`SELECT id, title FROM courses WHERE id = $1 AND teacher_id = $2`, [courseId, session.sub])
     if (ownCheck.length === 0) {
       return NextResponse.json({ error: 'Unauthorized course' }, { status: 403 })
     }
+    const courseTitle = ownCheck[0]?.title || 'دورة'
 
     const body = await req.json()
-    const { title, description, video_url, duration_minutes, attachments } = body
+    const { title, description, video_url, duration_minutes, attachments, status } = body
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
@@ -59,20 +62,19 @@ export async function POST(
     const orderResult = await query<any>(orderQuery, [courseId])
     const orderIndex = orderResult[0]?.next_order || 1
 
-    // Insert (populate both lesson_order and order_index to satisfy db constraints)
+    const finalStatus = status === 'draft' ? 'draft' : 'pending_review'
     const insertQuery = `
-      INSERT INTO lessons (course_id, title, description, video_url, order_index, lesson_order, duration_minutes, created_at)
-      VALUES ($1, $2, $3, $4, $5, $5, $6, NOW())
+      INSERT INTO lessons (course_id, title, description, video_url, order_index, lesson_order, duration_minutes, status, created_at)
+      VALUES ($1, $2, $3, $4, $5, $5, $6, $7, NOW())
       RETURNING *
     `
     const result = await query(insertQuery, [
-      courseId, title, description || null, video_url || null, orderIndex, duration_minutes || null
+      courseId, title, description || null, video_url || null, orderIndex, duration_minutes || null, finalStatus
     ])
-    const newLesson = result[0];
+    const newLesson = result[0] as any;
 
     if (attachments && attachments.length > 0) {
       for (const att of attachments) {
-        // file_type is uppercase in CHECK ('PDF', 'DOC', 'DOCX', 'XLSX', 'PPTX', 'ZIP', 'OTHER')
         let fileType = 'OTHER'
         const ext = att.name.split('.').pop()?.toUpperCase()
         if (['PDF', 'DOC', 'DOCX', 'XLSX', 'PPTX', 'ZIP'].includes(ext || '')) fileType = ext!
@@ -84,9 +86,44 @@ export async function POST(
       }
     }
 
+    // B-7: إشعار للمشرفين بدرس جديد ينتظر المراجعة
+    // Prefer content_supervisor; fall back to admins if no content supervisors exist.
+    if (finalStatus === 'pending_review') {
+      try {
+        const recipients = await query<{ id: string; role: string }>(
+          `SELECT id, role FROM users
+           WHERE is_active = true
+             AND (
+               role IN ('content_supervisor', 'supervisor', 'admin', 'academy_admin')
+               OR academy_roles && ARRAY['content_supervisor','supervisor']::varchar[]
+             )`,
+        )
+
+        const contentSupervisors = recipients.filter(r => r.role === 'content_supervisor')
+        const targets = contentSupervisors.length > 0 ? contentSupervisors : recipients
+
+        for (const target of targets) {
+          const link =
+            target.role === 'content_supervisor' ? '/academy/content-supervisor/lessons' :
+                                                   '/academy/supervisor/content'
+          await createNotification({
+            userId: target.id,
+            type: 'general',
+            title: 'درس جديد ينتظر المراجعة',
+            message: `رفع المدرس درساً جديداً "${title}" في دورة "${courseTitle}" وينتظر موافقتك قبل النشر.`,
+            category: 'course',
+            link,
+          }).catch(() => {})
+        }
+      } catch (notifErr) {
+        console.error('[B-7] Failed to notify supervisors:', notifErr)
+      }
+    }
+
     return NextResponse.json({ success: true, data: newLesson }, { status: 201 })
   } catch (error) {
     console.error('[API] Error creating lesson:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

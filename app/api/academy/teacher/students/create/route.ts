@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { query } from "@/lib/db"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
+import { sendStudentCreatedByTeacherEmail } from "@/lib/email"
+
+function generateTemporaryPassword(): string {
+    return crypto.randomBytes(8).toString('base64url')
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -10,23 +16,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "غير مصرح" }, { status: 401 })
         }
 
-        const { name, email, password, gender } = await req.json()
+        const { name, email, gender } = await req.json()
 
-        if (!name || !email || !password) {
-            return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 })
+        if (!name || !email) {
+            return NextResponse.json({ error: "الاسم والبريد الإلكتروني مطلوبان" }, { status: 400 })
         }
 
         const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null
 
-        const passwordHash = await bcrypt.hash(password, 10)
+        const temporaryPassword = generateTemporaryPassword()
+        const passwordHash = await bcrypt.hash(temporaryPassword, 10)
 
         let user;
         try {
             const newUsers = await query<{ id: string; name: string; email: string }>(
-                `INSERT INTO users (name, email, password_hash, role, gender, has_academy_access, has_quran_access, platform_choice, platform_preference, email_verified)
-         VALUES ($1, $2, $3, 'student', $4, true, false, 'academy', 'academy', true)
+                `INSERT INTO users (name, email, password_hash, role, gender, has_academy_access, has_quran_access, platform_choice, platform_preference, email_verified, must_change_password, created_by)
+         VALUES ($1, $2, $3, 'student', $4, true, true, 'both', 'academy', true, true, $5)
          RETURNING id, name, email`,
-                [name, email.toLowerCase(), passwordHash, gender || null]
+                [name, email.toLowerCase(), passwordHash, gender || null, session.sub]
             )
             user = newUsers[0]
 
@@ -46,6 +53,13 @@ export async function POST(req: NextRequest) {
        VALUES ($1, 'student_created_by_teacher', $2, $3)`,
             [session.sub, `أنشأ حساب الطالب الجديد ${user.name} (${user.email})`, ip]
         ).catch(() => { })
+
+        try {
+            const teacherName = session.name || "معلمك";
+            await sendStudentCreatedByTeacherEmail(email.toLowerCase(), name, teacherName, temporaryPassword);
+        } catch (emailErr) {
+            console.error("Failed to send student creation email:", emailErr);
+        }
 
         return NextResponse.json({ user })
     } catch (error: any) {

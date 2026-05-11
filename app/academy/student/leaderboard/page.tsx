@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
-import { Trophy, Medal, Star, Flame, Crown, TrendingUp } from 'lucide-react'
+import { Trophy, Medal, Star, Flame, Crown, TrendingUp, Filter } from 'lucide-react'
 
 interface LeaderboardEntry {
   rank: number
@@ -14,6 +14,12 @@ interface LeaderboardEntry {
   current_level: number
   streak_days: number
   is_current_user: boolean
+  halqa_name?: string | null
+}
+
+interface Halqa {
+  id: string
+  name: string
 }
 
 export default function LeaderboardPage() {
@@ -22,11 +28,31 @@ export default function LeaderboardPage() {
   const [currentUserRank, setCurrentUserRank] = useState<LeaderboardEntry | null>(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'all_time'>('weekly')
+  const [halqaId, setHalqaId] = useState<string>('')
+  const [halaqat, setHalaqat] = useState<Halqa[]>([])
+
+  useEffect(() => {
+    async function fetchHalaqat() {
+      try {
+        const res = await fetch('/api/academy/admin/halaqat')
+        if (res.ok) {
+          const data = await res.json()
+          setHalaqat(data.data || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch halaqat:', error)
+      }
+    }
+    fetchHalaqat()
+  }, [])
 
   useEffect(() => {
     async function fetchLeaderboard() {
+      setLoading(true)
       try {
-        const res = await fetch(`/api/academy/leaderboard?period=${period}&limit=50`)
+        const params = new URLSearchParams({ period, limit: '50' })
+        if (halqaId) params.set('halqa_id', halqaId)
+        const res = await fetch(`/api/academy/leaderboard?${params}`)
         if (res.ok) {
           const data = await res.json()
           setLeaderboard(data.data || [])
@@ -39,7 +65,7 @@ export default function LeaderboardPage() {
       }
     }
     fetchLeaderboard()
-  }, [period])
+  }, [period, halqaId])
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />
@@ -98,6 +124,23 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
+      {/* Halqa Filter */}
+      {halaqat.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <select
+            value={halqaId}
+            onChange={e => setHalqaId(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm bg-muted border border-border"
+          >
+            <option value="">كل المنصة</option>
+            {halaqat.map(h => (
+              <option key={h.id} value={h.id}>{h.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Current User Position */}
       {currentUserRank && currentUserRank.rank > 10 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
@@ -125,119 +168,69 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-      {/* Top 3 Podium */}
-      {leaderboard.length >= 3 && (
-        <div className="flex items-end justify-center gap-4 py-8">
-          {/* Second Place */}
-          <div className="text-center">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gray-200 dark:bg-gray-700 border-4 border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden mb-2">
-              {leaderboard[1].avatar_url ? (
-                <img src={leaderboard[1].avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-gray-500">{leaderboard[1].user_name[0]}</span>
-              )}
-            </div>
-            <Medal className="w-8 h-8 mx-auto text-gray-400 mb-1" />
-            <p className="font-semibold text-sm truncate max-w-[100px]">{leaderboard[1].user_name}</p>
-            <p className="text-sm text-muted-foreground">{leaderboard[1].total_points}</p>
-            <div className="h-16 w-20 bg-gray-200 dark:bg-gray-700 rounded-t-lg mt-2" />
-          </div>
-
-          {/* First Place */}
-          <div className="text-center -mb-4">
-            <Crown className="w-10 h-10 mx-auto text-yellow-500 mb-2" />
-            <div className="w-24 h-24 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 border-4 border-yellow-400 flex items-center justify-center overflow-hidden mb-2">
-              {leaderboard[0].avatar_url ? (
-                <img src={leaderboard[0].avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-3xl font-bold text-yellow-600">{leaderboard[0].user_name[0]}</span>
-              )}
-            </div>
-            <p className="font-bold truncate max-w-[120px]">{leaderboard[0].user_name}</p>
-            <p className="text-sm text-yellow-600 font-semibold">{leaderboard[0].total_points}</p>
-            <div className="h-24 w-24 bg-yellow-200 dark:bg-yellow-800/30 rounded-t-lg mt-2" />
-          </div>
-
-          {/* Third Place */}
-          <div className="text-center">
-            <div className="w-20 h-20 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/30 border-4 border-amber-400 flex items-center justify-center overflow-hidden mb-2">
-              {leaderboard[2].avatar_url ? (
-                <img src={leaderboard[2].avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-amber-600">{leaderboard[2].user_name[0]}</span>
-              )}
-            </div>
-            <Medal className="w-8 h-8 mx-auto text-amber-600 mb-1" />
-            <p className="font-semibold text-sm truncate max-w-[100px]">{leaderboard[2].user_name}</p>
-            <p className="text-sm text-muted-foreground">{leaderboard[2].total_points}</p>
-            <div className="h-12 w-20 bg-amber-200 dark:bg-amber-800/30 rounded-t-lg mt-2" />
-          </div>
+      {/* Leaderboard List */}
+      {leaderboard.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl p-12 text-center">
+          <Trophy className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <p className="text-muted-foreground">لا توجد بيانات بعد</p>
         </div>
-      )}
-
-      {/* Full Leaderboard */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h2 className="font-bold">{t.academy?.fullRankings || 'الترتيب الكامل'}</h2>
-        </div>
-
-        <div className="divide-y divide-border">
+      ) : (
+        <div className="space-y-2">
           {leaderboard.map((entry) => (
             <div
               key={entry.user_id}
               className={cn(
-                "flex items-center gap-4 p-4 transition-colors",
-                entry.is_current_user && "bg-blue-50 dark:bg-blue-900/20",
-                getRankBackground(entry.rank)
+                "border rounded-xl p-4 transition-all",
+                getRankBackground(entry.rank),
+                entry.is_current_user && "ring-2 ring-blue-400 dark:ring-blue-600"
               )}
             >
-              {/* Rank */}
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                {getRankIcon(entry.rank)}
-              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-10 flex items-center justify-center">
+                  {getRankIcon(entry.rank)}
+                </div>
 
-              {/* Avatar & Name */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center overflow-hidden shrink-0">
-                  {entry.avatar_url ? (
-                    <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="font-bold text-blue-600">{entry.user_name[0]}</span>
+                {entry.avatar_url ? (
+                  <img src={entry.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
+                    {entry.user_name?.charAt(0) || '?'}
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold truncate">
+                      {entry.user_name}
+                      {entry.is_current_user && <span className="text-xs text-blue-500 mr-1">(أنت)</span>}
+                    </p>
+                  </div>
+                  {entry.halqa_name && (
+                    <p className="text-xs text-muted-foreground">{entry.halqa_name}</p>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <p className={cn(
-                    "font-medium truncate",
-                    entry.is_current_user && "text-blue-600"
-                  )}>
-                    {entry.user_name}
-                    {entry.is_current_user && (
-                      <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full mr-2">
-                        {t.academy?.you || 'أنت'}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {t.academy?.level || 'المستوى'} {entry.current_level}
-                  </p>
-                </div>
-              </div>
 
-              {/* Stats */}
-              <div className="flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1 text-orange-500">
-                  <Flame className="w-4 h-4" />
-                  {entry.streak_days}
-                </span>
-                <span className="flex items-center gap-1 font-bold text-yellow-600">
-                  <Star className="w-4 h-4" />
-                  {entry.total_points}
-                </span>
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="text-center">
+                    <p className="flex items-center gap-1 font-bold text-amber-600">
+                      <Star className="w-4 h-4" />
+                      {entry.total_points}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{t.academy?.points || 'نقطة'}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="flex items-center gap-1 font-bold text-orange-500">
+                      <Flame className="w-4 h-4" />
+                      {entry.streak_days}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{t.academy?.days || 'يوم'}</p>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }

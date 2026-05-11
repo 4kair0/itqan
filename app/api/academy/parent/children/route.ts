@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { query } from '@/lib/db'
 
-// GET: List linked children for parent
+// GET: List linked children for parent (active + pending)
 export async function GET() {
   const session = await getSession()
   if (!session || session.role !== 'parent') {
@@ -18,12 +18,16 @@ export async function GET() {
     relation: string
     status: string
     linked_at: string
+    confirmed_at: string | null
+    requested_at: string
   }>(
-    `SELECT pc.id, pc.child_id, u.name as child_name, u.email as child_email, 
-            u.avatar_url as child_avatar, pc.relation, pc.status, pc.created_at as linked_at
+    `SELECT pc.id, pc.child_id, u.name as child_name, u.email as child_email,
+            u.avatar_url as child_avatar, pc.relation, pc.status,
+            pc.created_at as linked_at,
+            pc.confirmed_at, pc.requested_at
      FROM parent_children pc
      JOIN users u ON u.id = pc.child_id
-     WHERE pc.parent_id = $1
+     WHERE pc.parent_id = $1 AND pc.status IN ('active', 'pending')
      ORDER BY pc.created_at DESC`,
     [session.sub]
   )
