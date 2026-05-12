@@ -148,6 +148,8 @@ const getAcademyRoleConfig = (t: any, role: AcademyRole): { sections: NavSection
             { href: '/academy/parent/children', label: t.academy?.myChildren || 'أبنائي', icon: Users },
             { href: '/academy/parent/reports', label: t.academy?.reports || 'التقارير', icon: FileText },
             { href: '/academy/parent/progress', label: t.academy?.progress || 'التقدم', icon: Target },
+            { href: '/academy/parent/messages', label: 'رسائل الشيخ', icon: MessageSquare },
+            { href: '/academy/parent/content-restrictions', label: 'تقييد المحتوى', icon: Shield },
           ]
         },
         {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, FileText, Target, CheckCircle2, AlertCircle, Clock, GraduationCap, ChevronRight, Loader2 } from 'lucide-react'
+import { Users, FileText, Target, CheckCircle2, AlertCircle, Clock, GraduationCap, ChevronRight, Loader2, MessageSquare, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
@@ -204,6 +204,24 @@ export default function ParentDashboard() {
                  <div>
                    <h5 className="font-bold text-sm text-foreground">{isAr ? "إدارة الأبناء" : "Manage Children"}</h5>
                    <p className="text-xs font-medium text-muted-foreground mt-0.5">{isAr ? "عرض وإدارة حسابات أبنائك" : "View and manage your children"}</p>
+                 </div>
+               </Link>
+               <Link href="/academy/parent/messages" className="p-5 flex items-center gap-4 hover:bg-muted/20 transition-colors block">
+                 <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                   <MessageSquare className="w-5 h-5 text-emerald-500" />
+                 </div>
+                 <div>
+                   <h5 className="font-bold text-sm text-foreground">{isAr ? "رسائل الشيخ" : "Teacher Messages"}</h5>
+                   <p className="text-xs font-medium text-muted-foreground mt-0.5">{isAr ? "تواصل مباشرة مع معلمي أبنائك" : "Communicate with your children's teachers"}</p>
+                 </div>
+               </Link>
+               <Link href="/academy/parent/content-restrictions" className="p-5 flex items-center gap-4 hover:bg-muted/20 transition-colors block">
+                 <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                   <Shield className="w-5 h-5 text-red-500" />
+                 </div>
+                 <div>
+                   <h5 className="font-bold text-sm text-foreground">{isAr ? "تقييد المحتوى" : "Content Restrictions"}</h5>
+                   <p className="text-xs font-medium text-muted-foreground mt-0.5">{isAr ? "تحكم في السور والمسارات المسموحة" : "Control allowed surahs and paths"}</p>
                  </div>
                </Link>
                <Link href="/academy/parent/notifications" className="p-5 flex items-center gap-4 hover:bg-muted/20 transition-colors block">
