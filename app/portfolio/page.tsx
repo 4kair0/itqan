@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import PortfolioDock from './components/PortfolioDock'
 import Navigation from './components/Navigation'
 import Hero from './components/Hero'
 import Timeline from './components/Timeline'
@@ -20,7 +21,10 @@ export default function PortfolioPage() {
       className="min-h-screen bg-[#0a0f1a] text-white font-[family-name:var(--font-inter)]"
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
+      {/* Top nav for language switch only (minimal) */}
       <Navigation lang={lang} onLangChange={setLang} />
+
+      {/* Sections */}
       <Hero lang={lang} />
       <Timeline lang={lang} />
       <EventsGrid lang={lang} />
@@ -29,6 +33,9 @@ export default function PortfolioPage() {
       <SkillsSection lang={lang} />
       <Education lang={lang} />
       <Contact lang={lang} />
+
+      {/* MacOS Dock - Bottom navigation */}
+      <PortfolioDock lang={lang} />
     </div>
   )
 }
