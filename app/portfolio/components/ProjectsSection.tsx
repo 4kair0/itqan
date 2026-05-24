@@ -55,10 +55,9 @@ function TechGraph({ activeTech }: { activeTech: string | null }) {
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke={isActive ? '#00ff41' : '#1a1a1a'}
+              stroke={isActive ? '#3b82f6' : '#e5e7eb'}
               strokeWidth={isActive ? 1.5 : 0.5}
-              opacity={isActive ? 0.8 : 0.4}
-              style={isActive ? { filter: 'drop-shadow(0 0 4px rgba(0,255,65,0.5))' } : undefined}
+              opacity={isActive ? 0.9 : 0.5}
             />
           )
         })}
@@ -73,29 +72,28 @@ function TechGraph({ activeTech }: { activeTech: string | null }) {
                   cy={node.y}
                   r={12}
                   fill="none"
-                  stroke="#00ff41"
+                  stroke="#8b5cf6"
                   strokeWidth={0.5}
-                  opacity={0.3}
+                  opacity={0.4}
                 />
               )}
               <circle
                 cx={node.x}
                 cy={node.y}
                 r={isActive ? 6 : 3}
-                fill={isActive ? '#00ff41' : '#333333'}
-                stroke={isActive ? '#00ff41' : 'transparent'}
+                fill={isActive ? '#3b82f6' : '#d1d5db'}
+                stroke={isActive ? '#3b82f6' : 'transparent'}
                 strokeWidth={2}
-                opacity={isActive ? 1 : 0.6}
-                style={isActive ? { filter: 'drop-shadow(0 0 6px rgba(0,255,65,0.8))' } : undefined}
+                opacity={isActive ? 1 : 0.7}
               />
               {isActive && (
                 <text
                   x={node.x}
                   y={node.y - 14}
                   textAnchor="middle"
-                  fill="#00ff41"
+                  fill="#3b82f6"
                   fontSize="10"
-                  fontFamily="monospace"
+                  fontFamily="system-ui"
                 >
                   {node.id}
                 </text>
@@ -117,7 +115,7 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
   const filtered = projects.filter(p => filter === 'all' || p.category === filter)
 
   return (
-    <section id="projects" className="relative py-24 md:py-32 bg-black">
+    <section id="projects" className="relative py-24 md:py-32 bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -126,10 +124,10 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-[#00ff41] mb-4 font-mono drop-shadow-[0_0_15px_rgba(0,255,65,0.3)]">
+          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             {t.title}
           </h2>
-          <p className="text-gray-500 text-lg max-w-xl mx-auto font-mono">
+          <p className="text-gray-500 text-lg max-w-xl mx-auto">
             {t.subtitle}
           </p>
         </motion.div>
@@ -140,10 +138,10 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`px-4 py-2 rounded-lg text-sm font-mono transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm transition-all ${
                 filter === cat
-                  ? 'bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/40 shadow-[0_0_10px_rgba(0,255,65,0.1)]'
-                  : 'text-gray-500 hover:text-[#00ff41] border border-transparent hover:border-[#00ff41]/20'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                  : 'text-gray-500 hover:text-blue-600 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'
               }`}
             >
               {cat === 'all' ? t.filterAll : cat === 'web' ? t.filterWeb : t.filterAI}
@@ -165,32 +163,32 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="rounded-lg border border-[#00ff41]/10 bg-black/60 backdrop-blur-sm overflow-hidden hover:border-[#00ff41]/30 hover:shadow-[0_0_20px_rgba(0,255,65,0.05)] transition-all duration-300 group"
+                  className="rounded-xl border border-gray-200 bg-white overflow-hidden hover:border-blue-300 hover:shadow-lg hover:shadow-blue-50 transition-all duration-300 group"
                   onMouseEnter={() => setHoveredTech(project.technologies[0])}
                   onMouseLeave={() => setHoveredTech(null)}
                 >
                   {/* Image */}
-                  <div className="h-40 bg-gradient-to-br from-[#0a0a0a] to-[#111111] flex items-center justify-center relative overflow-hidden">
+                  <div className="h-40 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center relative overflow-hidden">
                     <div
                       className="absolute inset-0 opacity-5"
                       style={{
-                        backgroundImage: 'linear-gradient(rgba(0,255,65,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,65,0.5) 1px, transparent 1px)',
+                        backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)',
                         backgroundSize: '30px 30px',
                       }}
                     />
-                    <div className="text-3xl opacity-20">
+                    <div className="text-3xl opacity-30">
                       {project.category === 'web' ? '🌐' : '🤖'}
                     </div>
-                    <div className="absolute top-3 right-3 px-2 py-1 rounded text-xs font-mono bg-black/80 border border-[#00ff41]/20 text-[#00ff41]">
+                    <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs bg-white/90 border border-gray-200 text-blue-600 font-medium shadow-sm">
                       {project.category.toUpperCase()}
                     </div>
                   </div>
 
                   <div className="p-5">
-                    <h3 className="text-white font-semibold text-lg mb-2 font-mono group-hover:text-[#00ff41] transition-colors">
+                    <h3 className="text-gray-900 font-semibold text-lg mb-2 group-hover:text-blue-600 transition-colors">
                       {lang === 'ar' ? project.titleAr : project.title}
                     </h3>
-                    <p className="text-gray-500 text-sm mb-3 font-mono line-clamp-2">
+                    <p className="text-gray-500 text-sm mb-3 line-clamp-2">
                       {lang === 'ar' ? project.descriptionAr : project.description}
                     </p>
 
@@ -199,14 +197,14 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
                       {project.technologies.slice(0, 4).map(tech => (
                         <span
                           key={tech}
-                          className="px-2 py-0.5 rounded text-xs font-mono bg-[#00ff41]/5 text-[#00ff41]/70 border border-[#00ff41]/10"
+                          className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-600 border border-blue-100"
                           onMouseEnter={() => setHoveredTech(tech)}
                         >
                           {tech}
                         </span>
                       ))}
                       {project.technologies.length > 4 && (
-                        <span className="px-2 py-0.5 rounded text-xs font-mono text-gray-600">
+                        <span className="px-2 py-0.5 rounded-full text-xs text-gray-400">
                           +{project.technologies.length - 4}
                         </span>
                       )}
@@ -215,7 +213,7 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
                     {/* Expand for challenges */}
                     <button
                       onClick={() => setExpandedProject(expandedProject === project.id ? null : project.id)}
-                      className="text-sm text-[#00d4ff]/70 hover:text-[#00d4ff] flex items-center gap-1 transition-colors mb-3 font-mono"
+                      className="text-sm text-purple-500 hover:text-purple-700 flex items-center gap-1 transition-colors mb-3"
                     >
                       <ChevronRight className={`w-3 h-3 transition-transform ${expandedProject === project.id ? 'rotate-90' : ''}`} />
                       Challenges & Solutions
@@ -229,17 +227,11 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden mb-3"
                         >
-                          <div className="space-y-2 text-xs font-mono">
+                          <div className="space-y-2 text-xs">
                             {(lang === 'ar' ? project.challengesAr : project.challenges).map((challenge, i) => (
                               <div key={i} className="flex gap-2">
-                                <span className="text-red-400 shrink-0">▸</span>
-                                <span className="text-gray-500">{challenge}</span>
-                              </div>
-                            ))}
-                            {(lang === 'ar' ? project.solutionsAr : project.solutions).map((solution, i) => (
-                              <div key={i} className="flex gap-2">
-                                <span className="text-[#00ff41] shrink-0">✓</span>
-                                <span className="text-gray-400">{solution}</span>
+                                <span className="text-purple-500 mt-0.5">▸</span>
+                                <span className="text-gray-600">{challenge}</span>
                               </div>
                             ))}
                           </div>
@@ -248,17 +240,13 @@ export default function ProjectsSection({ lang }: ProjectsSectionProps) {
                     </AnimatePresence>
 
                     {/* Links */}
-                    <div className="flex items-center gap-3">
-                      {project.liveUrl && (
-                        <a href={project.liveUrl} className="flex items-center gap-1 text-xs font-mono text-gray-500 hover:text-[#00ff41] transition-colors">
-                          <ExternalLink className="w-3 h-3" />
-                          {t.liveDemo}
-                        </a>
-                      )}
-                      {project.githubUrl && (
-                        <a href={project.githubUrl} className="flex items-center gap-1 text-xs font-mono text-gray-500 hover:text-white transition-colors">
-                          <Github className="w-3 h-3" />
-                          {t.sourceCode}
+                    <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
+                      <a href={project.github} className="text-gray-400 hover:text-blue-600 transition-colors">
+                        <Github className="w-4 h-4" />
+                      </a>
+                      {project.live && (
+                        <a href={project.live} className="text-gray-400 hover:text-purple-600 transition-colors">
+                          <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
                     </div>

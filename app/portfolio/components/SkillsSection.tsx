@@ -19,15 +19,14 @@ function SkillBar({ name, level, delay }: { name: string; level: number; delay: 
   return (
     <div ref={ref} className="group">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm text-gray-400 font-mono">{name}</span>
-        <span className="text-xs text-[#00ff41]/60 font-mono">{level}%</span>
+        <span className="text-sm text-gray-700">{name}</span>
+        <span className="text-xs text-blue-600">{level}%</span>
       </div>
-      <div className="h-1.5 rounded-full bg-[#111111] overflow-hidden border border-[#00ff41]/5">
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{
-            background: 'linear-gradient(90deg, #00ff41 0%, #00d4ff 100%)',
-            boxShadow: '0 0 8px rgba(0,255,65,0.3)',
+            background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%)',
           }}
           initial={{ width: 0 }}
           animate={isInView ? { width: `${level}%` } : { width: 0 }}
@@ -53,7 +52,7 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
   const filteredSkills = skills.filter(s => s.category === activeCategory)
 
   return (
-    <section id="skills" className="relative py-24 md:py-32 bg-black">
+    <section id="skills" className="relative py-24 md:py-32 bg-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -62,10 +61,10 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-[#00ff41] mb-4 font-mono drop-shadow-[0_0_15px_rgba(0,255,65,0.3)]">
+          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             {t.title}
           </h2>
-          <p className="text-gray-500 text-lg max-w-xl mx-auto font-mono">
+          <p className="text-gray-500 text-lg max-w-xl mx-auto">
             {t.subtitle}
           </p>
         </motion.div>
@@ -76,10 +75,10 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-mono transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm transition-all ${
                 activeCategory === cat.id
-                  ? 'bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/40 shadow-[0_0_10px_rgba(0,255,65,0.1)]'
-                  : 'text-gray-500 border border-transparent hover:text-[#00ff41] hover:border-[#00ff41]/20'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                  : 'text-gray-500 border border-gray-200 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50'
               }`}
             >
               {categoryLabels[cat.id]}
@@ -121,12 +120,12 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
           ].map(stat => (
             <div
               key={stat.label}
-              className="text-center p-4 rounded-lg border border-[#00ff41]/10 bg-black/40"
+              className="text-center p-4 rounded-xl border border-gray-200 bg-white shadow-sm"
             >
-              <div className="text-2xl md:text-3xl font-bold font-mono text-[#00ff41] drop-shadow-[0_0_8px_rgba(0,255,65,0.3)]">
+              <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {stat.value}
               </div>
-              <div className="text-xs text-gray-600 mt-1 font-mono">{stat.label}</div>
+              <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
             </div>
           ))}
         </motion.div>

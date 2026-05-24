@@ -27,25 +27,25 @@ function TimelineCard({ item, index, lang }: { item: typeof timelineData[0]; ind
       {/* Card */}
       <div className={`flex-1 ${isLeft ? 'md:text-right' : 'md:text-left'} text-left`}>
         <motion.div
-          className="p-5 rounded-lg border border-[#00ff41]/10 bg-black/40 backdrop-blur-sm hover:border-[#00ff41]/30 hover:shadow-[0_0_20px_rgba(0,255,65,0.05)] transition-all duration-300 group"
+          className="p-5 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm hover:border-blue-300 hover:shadow-lg hover:shadow-blue-50 transition-all duration-300 group"
           whileHover={{ scale: 1.02 }}
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">{item.icon}</span>
-            <span className="text-[#00ff41] font-mono text-sm">{item.year}</span>
+            <span className="text-blue-600 font-medium text-sm">{item.year}</span>
           </div>
-          <h3 className="text-white font-semibold text-lg mb-1 font-mono">
+          <h3 className="text-gray-900 font-semibold text-lg mb-1">
             {lang === 'ar' ? item.titleAr : item.title}
           </h3>
-          <p className="text-gray-500 text-sm leading-relaxed font-mono">
+          <p className="text-gray-500 text-sm leading-relaxed">
             {lang === 'ar' ? item.descriptionAr : item.description}
           </p>
           <div className="mt-3">
-            <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono ${
-              item.type === 'education' ? 'bg-[#00d4ff]/10 text-[#00d4ff] border border-[#00d4ff]/20' :
-              item.type === 'work' ? 'bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/20' :
-              item.type === 'achievement' ? 'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20' :
-              'bg-[#8b5cf6]/10 text-[#8b5cf6] border border-[#8b5cf6]/20'
+            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+              item.type === 'education' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+              item.type === 'work' ? 'bg-purple-50 text-purple-600 border border-purple-200' :
+              item.type === 'achievement' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+              'bg-violet-50 text-violet-600 border border-violet-200'
             }`}>
               {item.type}
             </span>
@@ -56,14 +56,14 @@ function TimelineCard({ item, index, lang }: { item: typeof timelineData[0]; ind
       {/* Node with pulse */}
       <div className="relative flex-shrink-0 hidden md:flex flex-col items-center">
         <motion.div
-          className="w-4 h-4 rounded-full bg-[#00ff41] border-4 border-black z-10 shadow-[0_0_10px_rgba(0,255,65,0.5)]"
+          className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 border-4 border-white z-10 shadow-md"
           initial={{ scale: 0 }}
           animate={isInView ? { scale: 1 } : {}}
           transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
         />
         {/* Pulse ring */}
         <motion.div
-          className="absolute w-8 h-8 rounded-full border border-[#00ff41]/30"
+          className="absolute w-8 h-8 rounded-full border border-blue-300"
           initial={{ scale: 0, opacity: 0 }}
           animate={isInView ? { scale: [0.5, 1.5], opacity: [0.5, 0] } : {}}
           transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
@@ -80,7 +80,7 @@ export default function Timeline({ lang }: TimelineProps) {
   const t = portfolioTranslations[lang].timeline
 
   return (
-    <section id="about" className="relative py-24 md:py-32 bg-black">
+    <section id="about" className="relative py-24 md:py-32 bg-gray-50/50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -90,21 +90,20 @@ export default function Timeline({ lang }: TimelineProps) {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-[#00ff41] mb-4 font-mono drop-shadow-[0_0_15px_rgba(0,255,65,0.3)]">
+          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             {t.title}
           </h2>
-          <p className="text-gray-500 text-lg max-w-xl mx-auto font-mono">
+          <p className="text-gray-500 text-lg max-w-xl mx-auto">
             {t.subtitle}
           </p>
         </motion.div>
 
         {/* Timeline */}
         <div className="relative">
-          {/* Center data-flow line */}
+          {/* Center line */}
           <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px hidden md:block"
             style={{
-              background: 'linear-gradient(to bottom, transparent, #00ff41 10%, #00ff41 90%, transparent)',
-              boxShadow: '0 0 8px rgba(0,255,65,0.3)',
+              background: 'linear-gradient(to bottom, transparent, #3b82f6 10%, #8b5cf6 90%, transparent)',
             }}
           />
 

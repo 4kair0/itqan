@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import NeuralBackground from './components/NeuralBackground'
-import PortfolioDock from './components/PortfolioDock'
 import Navigation from './components/Navigation'
 import Hero from './components/Hero'
 import Timeline from './components/Timeline'
@@ -19,13 +18,13 @@ export default function PortfolioPage() {
 
   return (
     <div
-      className="min-h-screen bg-black text-white font-[family-name:var(--font-inter)]"
+      className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-inter)]"
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
-      {/* Neural Network Animated Background */}
+      {/* Brain Neural Network Background */}
       <NeuralBackground />
 
-      {/* Top nav for language switch only (minimal) */}
+      {/* Navigation */}
       <Navigation lang={lang} onLangChange={setLang} />
 
       {/* Sections */}
@@ -37,9 +36,6 @@ export default function PortfolioPage() {
       <SkillsSection lang={lang} />
       <Education lang={lang} />
       <Contact lang={lang} />
-
-      {/* MacOS Dock - Bottom navigation */}
-      <PortfolioDock lang={lang} />
     </div>
   )
 }
