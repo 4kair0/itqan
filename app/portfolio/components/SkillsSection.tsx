@@ -12,20 +12,23 @@ interface SkillsSectionProps {
   lang: PortfolioLang
 }
 
-function SkillBar({ name, level, color, delay }: { name: string; level: number; color: string; delay: number }) {
+function SkillBar({ name, level, delay }: { name: string; level: number; delay: number }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-50px' })
 
   return (
     <div ref={ref} className="group">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm text-gray-300 font-medium">{name}</span>
-        <span className="text-xs text-gray-500 font-mono">{level}%</span>
+        <span className="text-sm text-gray-400 font-mono">{name}</span>
+        <span className="text-xs text-[#00ff41]/60 font-mono">{level}%</span>
       </div>
-      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-[#111111] overflow-hidden border border-[#00ff41]/5">
         <motion.div
           className="h-full rounded-full"
-          style={{ backgroundColor: color }}
+          style={{
+            background: 'linear-gradient(90deg, #00ff41 0%, #00d4ff 100%)',
+            boxShadow: '0 0 8px rgba(0,255,65,0.3)',
+          }}
           initial={{ width: 0 }}
           animate={isInView ? { width: `${level}%` } : { width: 0 }}
           transition={{ duration: 1, delay, ease: [0.22, 1, 0.36, 1] }}
@@ -48,10 +51,9 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
   }
 
   const filteredSkills = skills.filter(s => s.category === activeCategory)
-  const activeColor = skillCategories.find(c => c.id === activeCategory)?.color || '#00d4ff'
 
   return (
-    <section id="skills" className="relative py-24 md:py-32 bg-[#0a0f1a]">
+    <section id="skills" className="relative py-24 md:py-32 bg-black">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -60,10 +62,10 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 font-mono">
+          <h2 className="text-3xl md:text-5xl font-bold text-[#00ff41] mb-4 font-mono drop-shadow-[0_0_15px_rgba(0,255,65,0.3)]">
             {t.title}
           </h2>
-          <p className="text-gray-400 text-lg max-w-xl mx-auto">
+          <p className="text-gray-500 text-lg max-w-xl mx-auto font-mono">
             {t.subtitle}
           </p>
         </motion.div>
@@ -74,16 +76,11 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+              className={`px-4 py-2 rounded-lg text-sm font-mono transition-all ${
                 activeCategory === cat.id
-                  ? 'text-white border'
-                  : 'text-gray-400 border border-transparent hover:text-white hover:border-white/10'
+                  ? 'bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/40 shadow-[0_0_10px_rgba(0,255,65,0.1)]'
+                  : 'text-gray-500 border border-transparent hover:text-[#00ff41] hover:border-[#00ff41]/20'
               }`}
-              style={{
-                backgroundColor: activeCategory === cat.id ? `${cat.color}15` : undefined,
-                borderColor: activeCategory === cat.id ? `${cat.color}40` : undefined,
-                color: activeCategory === cat.id ? cat.color : undefined,
-              }}
             >
               {categoryLabels[cat.id]}
             </button>
@@ -103,7 +100,6 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
               key={skill.name}
               name={skill.name}
               level={skill.level}
-              color={activeColor}
               delay={i * 0.05}
             />
           ))}
@@ -118,19 +114,19 @@ export default function SkillsSection({ lang }: SkillsSectionProps) {
           transition={{ delay: 0.3 }}
         >
           {[
-            { label: 'Technologies', value: '30+', color: '#00d4ff' },
-            { label: 'Projects', value: '15+', color: '#f59e0b' },
-            { label: 'Years Coding', value: '4+', color: '#10b981' },
-            { label: 'Events Managed', value: '10+', color: '#8b5cf6' },
+            { label: 'Technologies', value: '30+' },
+            { label: 'Projects', value: '15+' },
+            { label: 'Years Coding', value: '4+' },
+            { label: 'Events Managed', value: '10+' },
           ].map(stat => (
             <div
               key={stat.label}
-              className="text-center p-4 rounded-xl border border-white/5 bg-[#111827]/30"
+              className="text-center p-4 rounded-lg border border-[#00ff41]/10 bg-black/40"
             >
-              <div className="text-2xl md:text-3xl font-bold font-mono" style={{ color: stat.color }}>
+              <div className="text-2xl md:text-3xl font-bold font-mono text-[#00ff41] drop-shadow-[0_0_8px_rgba(0,255,65,0.3)]">
                 {stat.value}
               </div>
-              <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+              <div className="text-xs text-gray-600 mt-1 font-mono">{stat.label}</div>
             </div>
           ))}
         </motion.div>

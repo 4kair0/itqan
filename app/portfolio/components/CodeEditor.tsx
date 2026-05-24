@@ -11,9 +11,9 @@ interface CodeEditorProps {
 }
 
 const tabs = [
-  { id: 'about', icon: FileJson, color: '#f59e0b' },
+  { id: 'about', icon: FileJson, color: '#00ff41' },
   { id: 'skills', icon: FileCode, color: '#00d4ff' },
-  { id: 'system', icon: FileText, color: '#10b981' },
+  { id: 'system', icon: FileText, color: '#00ff41' },
   { id: 'challenges', icon: Terminal, color: '#8b5cf6' },
 ] as const
 
@@ -116,7 +116,7 @@ export default function CodeEditor({ lang }: CodeEditorProps) {
   const t = portfolioTranslations[lang].codeEditor
 
   return (
-    <section className="relative py-24 md:py-32 bg-[#0d1117]">
+    <section className="relative py-24 md:py-32 bg-black">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -125,31 +125,31 @@ export default function CodeEditor({ lang }: CodeEditorProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 font-mono">
+          <h2 className="text-3xl md:text-5xl font-bold text-[#00ff41] mb-4 font-mono drop-shadow-[0_0_15px_rgba(0,255,65,0.3)]">
             {t.title}
           </h2>
         </motion.div>
 
         {/* Editor */}
         <motion.div
-          className="rounded-2xl border border-white/10 bg-[#0a0f1a] overflow-hidden shadow-2xl"
+          className="rounded-lg border border-[#00ff41]/20 bg-[#050505] overflow-hidden shadow-[0_0_40px_rgba(0,255,65,0.05)]"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
           {/* Title bar */}
-          <div className="flex items-center gap-2 px-4 py-3 bg-[#111827] border-b border-white/5">
+          <div className="flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-b border-[#00ff41]/10">
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
               <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
               <div className="w-3 h-3 rounded-full bg-[#28ca42]" />
             </div>
-            <span className="text-gray-500 text-xs font-mono ml-3">mazen-portfolio</span>
+            <span className="text-[#00ff41]/50 text-xs font-mono ml-3">neural-portfolio // mazen-elsaka</span>
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center border-b border-white/5 bg-[#0d1117] overflow-x-auto">
+          <div className="flex items-center border-b border-[#00ff41]/10 bg-[#080808] overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon
               const tabKey = tab.id as keyof typeof codeContent
@@ -157,10 +157,10 @@ export default function CodeEditor({ lang }: CodeEditorProps) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tabKey)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-mono border-r border-white/5 transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-mono border-r border-[#00ff41]/5 transition-all whitespace-nowrap ${
                     activeTab === tabKey
-                      ? 'bg-[#0a0f1a] text-white border-t-2'
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                      ? 'bg-[#050505] text-[#00ff41] border-t-2'
+                      : 'text-gray-600 hover:text-gray-400 hover:bg-[#111111]'
                   }`}
                   style={{ borderTopColor: activeTab === tabKey ? tab.color : 'transparent' }}
                 >
@@ -174,9 +174,9 @@ export default function CodeEditor({ lang }: CodeEditorProps) {
           {/* Content */}
           <div className="flex">
             {/* Line numbers */}
-            <div className="hidden sm:flex flex-col items-end py-4 px-3 bg-[#0a0f1a] border-r border-white/5 select-none">
+            <div className="hidden sm:flex flex-col items-end py-4 px-3 bg-[#050505] border-r border-[#00ff41]/5 select-none">
               {codeContent[activeTab].split('\n').map((_, i) => (
-                <span key={i} className="text-xs font-mono text-gray-600 leading-6">
+                <span key={i} className="text-xs font-mono text-[#00ff41]/20 leading-6">
                   {i + 1}
                 </span>
               ))}
@@ -184,16 +184,16 @@ export default function CodeEditor({ lang }: CodeEditorProps) {
 
             {/* Code */}
             <div className="flex-1 p-4 overflow-x-auto">
-              <pre className="text-sm font-mono leading-6 text-gray-300">
+              <pre className="text-sm font-mono leading-6 text-[#00ff41]/80">
                 <code>{codeContent[activeTab]}</code>
               </pre>
             </div>
           </div>
 
           {/* Status bar */}
-          <div className="flex items-center justify-between px-4 py-1.5 bg-[#111827] border-t border-white/5 text-xs font-mono text-gray-500">
+          <div className="flex items-center justify-between px-4 py-1.5 bg-[#0a0a0a] border-t border-[#00ff41]/10 text-xs font-mono text-gray-600">
             <div className="flex items-center gap-3">
-              <span className="text-[#00d4ff]">●</span>
+              <span className="text-[#00ff41]">●</span>
               <span>UTF-8</span>
               <span>LF</span>
             </div>

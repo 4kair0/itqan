@@ -25,7 +25,7 @@ export default function Navigation({ lang, onLangChange }: NavigationProps) {
     <motion.nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#0a0f1a]/90 backdrop-blur-xl border-b border-white/5'
+          ? 'bg-black/80 backdrop-blur-xl border-b border-[#00ff41]/10'
           : 'bg-transparent'
       }`}
       initial={{ y: -100 }}
@@ -38,7 +38,7 @@ export default function Navigation({ lang, onLangChange }: NavigationProps) {
             onClick={() => {
               document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' })
             }}
-            className="text-[#00d4ff] font-mono font-bold text-lg"
+            className="text-[#00ff41] font-mono font-bold text-lg drop-shadow-[0_0_8px_rgba(0,255,65,0.4)]"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -47,7 +47,7 @@ export default function Navigation({ lang, onLangChange }: NavigationProps) {
 
           <button
             onClick={() => onLangChange(lang === 'en' ? 'ar' : 'en')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-400 hover:text-[#f59e0b] hover:bg-[#f59e0b]/10 transition-all text-sm font-mono"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-500 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 border border-transparent hover:border-[#00d4ff]/30 transition-all text-sm font-mono"
             title={lang === 'en' ? 'العربية' : 'English'}
           >
             <Globe className="w-4 h-4" />

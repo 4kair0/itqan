@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowDown, Github, Linkedin, Mail, Download } from 'lucide-react'
-import Noise from './Noise'
 import type { PortfolioLang } from '../data/i18n'
 import { portfolioTranslations } from '../data/i18n'
 
@@ -11,9 +10,57 @@ interface HeroProps {
   lang: PortfolioLang
 }
 
+function MatrixRain() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+
+    const chars = 'アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF<>{}[]()=/\\*&^%$#@!'
+    const fontSize = 12
+    const columns = Math.floor(canvas.width / fontSize)
+    const drops: number[] = Array(columns).fill(1)
+
+    const draw = () => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      ctx.fillStyle = '#00ff4120'
+      ctx.font = `${fontSize}px monospace`
+
+      for (let i = 0; i < drops.length; i++) {
+        const char = chars[Math.floor(Math.random() * chars.length)]
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize)
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0
+        }
+        drops[i]++
+      }
+    }
+
+    const interval = setInterval(draw, 50)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full opacity-30"
+    />
+  )
+}
+
 export default function Hero({ lang }: HeroProps) {
   const t = portfolioTranslations[lang].hero
   const [typedText, setTypedText] = useState('')
+  const [showCursor, setShowCursor] = useState(true)
   const fullText = t.name
 
   useEffect(() => {
@@ -26,63 +73,71 @@ export default function Hero({ lang }: HeroProps) {
       } else {
         clearInterval(interval)
       }
-    }, 80)
+    }, 100)
     return () => clearInterval(interval)
   }, [fullText])
+
+  useEffect(() => {
+    const blink = setInterval(() => setShowCursor(v => !v), 530)
+    return () => clearInterval(blink)
+  }, [])
 
   return (
     <section
       id="home"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0f1a]"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
     >
-      {/* Background Effects */}
+      {/* Matrix rain background */}
+      <MatrixRain />
+
+      {/* Scan line effect */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.1) 2px, rgba(0,255,65,0.1) 4px)',
+        }}
+      />
+
+      {/* Radial glow */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0a0f1a] to-[#111827]" />
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#00d4ff]/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[#8b5cf6]/5 rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#f59e0b]/3 rounded-full blur-[150px]" />
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(0,212,255,0.3) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(0,212,255,0.3) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
-          }}
-        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#00ff41]/[0.03] rounded-full blur-[150px]" />
+        <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-[#00d4ff]/[0.02] rounded-full blur-[120px]" />
       </div>
 
-      <Noise patternSize={130} patternAlpha={12} patternRefreshInterval={3} patternScaleY={2} />
-
       <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
-        {/* Greeting */}
-        <motion.p
-          className="text-gray-400 text-lg md:text-xl mb-4 font-mono"
+        {/* Terminal-style greeting */}
+        <motion.div
+          className="inline-flex items-center gap-2 mb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          {t.greeting}
-        </motion.p>
+          <span className="text-[#00ff41]/60 font-mono text-sm">{'>'}</span>
+          <span className="text-[#00ff41]/80 font-mono text-sm tracking-wider">
+            {t.greeting}
+          </span>
+        </motion.div>
 
         {/* Name with typing effect */}
         <motion.h1
-          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-4 font-mono tracking-tight"
+          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-4 font-mono tracking-tight"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <span className="text-[#00d4ff]">{typedText}</span>
-          <motion.span
-            className="inline-block w-[3px] h-[0.8em] bg-[#00d4ff] ml-1 align-middle"
-            animate={{ opacity: [1, 0] }}
-            transition={{ duration: 0.8, repeat: Infinity, ease: 'steps(1)' }}
+          <span className="text-[#00ff41] drop-shadow-[0_0_20px_rgba(0,255,65,0.3)]">
+            {typedText}
+          </span>
+          <span
+            className={`inline-block w-[3px] h-[0.75em] bg-[#00ff41] ml-1 align-middle transition-opacity ${
+              showCursor ? 'opacity-100' : 'opacity-0'
+            }`}
           />
         </motion.h1>
 
         {/* Title */}
         <motion.p
-          className="text-xl md:text-2xl text-gray-300 mb-3 font-[family-name:var(--font-inter)]"
+          className="text-xl md:text-2xl text-gray-300 mb-3 font-mono"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
@@ -90,20 +145,20 @@ export default function Hero({ lang }: HeroProps) {
           {t.title}
         </motion.p>
 
-        {/* Focus badge */}
+        {/* Focus badge - neural network style */}
         <motion.div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 mb-6"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#00d4ff]/30 bg-[#00d4ff]/5 mb-6"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.8 }}
         >
-          <span className="w-2 h-2 rounded-full bg-[#8b5cf6] animate-pulse" />
-          <span className="text-[#8b5cf6] text-sm font-medium font-mono">{t.focus}</span>
+          <span className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse shadow-[0_0_8px_rgba(0,212,255,0.8)]" />
+          <span className="text-[#00d4ff] text-sm font-medium font-mono">{t.focus}</span>
         </motion.div>
 
         {/* Subtitle */}
         <motion.p
-          className="text-gray-400 text-base md:text-lg max-w-xl mx-auto mb-10 font-[family-name:var(--font-inter)]"
+          className="text-gray-500 text-base md:text-lg max-w-xl mx-auto mb-10 font-mono"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1.0 }}
@@ -120,12 +175,12 @@ export default function Hero({ lang }: HeroProps) {
         >
           <button
             onClick={() => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' })}
-            className="group px-8 py-3 bg-[#00d4ff] text-[#0a0f1a] font-bold rounded-xl hover:bg-[#00d4ff]/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,212,255,0.3)] flex items-center gap-2"
+            className="group px-8 py-3 bg-[#00ff41]/10 text-[#00ff41] font-bold font-mono rounded-lg border border-[#00ff41]/40 hover:bg-[#00ff41]/20 hover:border-[#00ff41] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] flex items-center gap-2"
           >
             {t.cta}
             <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
           </button>
-          <button className="px-8 py-3 border border-[#f59e0b]/40 text-[#f59e0b] font-medium rounded-xl hover:bg-[#f59e0b]/10 hover:border-[#f59e0b] transition-all duration-300 flex items-center gap-2">
+          <button className="px-8 py-3 border border-[#00d4ff]/30 text-[#00d4ff] font-medium font-mono rounded-lg hover:bg-[#00d4ff]/10 hover:border-[#00d4ff]/60 transition-all duration-300 flex items-center gap-2">
             <Download className="w-4 h-4" />
             {t.download}
           </button>
@@ -148,7 +203,7 @@ export default function Hero({ lang }: HeroProps) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-3 rounded-xl border border-white/10 text-gray-400 hover:text-[#00d4ff] hover:border-[#00d4ff]/30 hover:bg-[#00d4ff]/5 transition-all duration-300"
+              className="p-3 rounded-lg border border-[#00ff41]/20 text-gray-500 hover:text-[#00ff41] hover:border-[#00ff41]/50 hover:bg-[#00ff41]/5 hover:shadow-[0_0_15px_rgba(0,255,65,0.1)] transition-all duration-300"
               aria-label={label}
             >
               <Icon className="w-5 h-5" />
@@ -163,7 +218,7 @@ export default function Hero({ lang }: HeroProps) {
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <ArrowDown className="w-5 h-5 text-gray-500" />
+        <ArrowDown className="w-5 h-5 text-[#00ff41]/40" />
       </motion.div>
     </section>
   )

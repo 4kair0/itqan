@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import NeuralBackground from './components/NeuralBackground'
 import PortfolioDock from './components/PortfolioDock'
 import Navigation from './components/Navigation'
 import Hero from './components/Hero'
@@ -18,9 +19,12 @@ export default function PortfolioPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#0a0f1a] text-white font-[family-name:var(--font-inter)]"
+      className="min-h-screen bg-black text-white font-[family-name:var(--font-inter)]"
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
+      {/* Neural Network Animated Background */}
+      <NeuralBackground />
+
       {/* Top nav for language switch only (minimal) */}
       <Navigation lang={lang} onLangChange={setLang} />
 
